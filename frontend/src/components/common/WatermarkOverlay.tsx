@@ -1,8 +1,13 @@
 import React from 'react';
-import { WatermarkConfig } from '../../types';
+import { WatermarkPosition } from '../../types/api';
 
 interface WatermarkOverlayProps {
-  watermark: WatermarkConfig;
+  watermark: {
+    enabled: boolean;
+    text: string;
+    position: WatermarkPosition;
+    opacity: number;
+  };
 }
 
 export const WatermarkOverlay: React.FC<WatermarkOverlayProps> = ({ watermark }) => {

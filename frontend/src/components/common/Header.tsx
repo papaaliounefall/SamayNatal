@@ -1,107 +1,43 @@
-import React from 'react';
-import { useApp } from '../../context/AppContext';
-import { Camera, Shield, UserCheck, ShoppingBag, Eye, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
+import { Camera, Shield, ShoppingBag, LogOut, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
+import { navigate, useLocation } from '../../lib/router';
 
 export const Header: React.FC = () => {
-  const { role, setRole, navigation, navigateTo, cart, pendingPhotographers } = useApp();
+  const { user, logout } = useAuth();
+  const { cart } = useCart();
+  const path = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const isLanding = navigation.view === 'landing';
-  const isClientView = navigation.view === 'client_gallery';
-  const isAdminView = navigation.view === 'admin_dashboard';
-  const isPhotogView =
-    navigation.view === 'photographer_dashboard' ||
-    navigation.view === 'photographer_event_detail' ||
-    navigation.view === 'photographer_wallet';
+  const isLanding = path === '/';
+  const isClientView = /^\/g\//.test(path);
+  const isAdminView = path === '/admin';
+  const isPhotogView = path.startsWith('/dashboard');
+
+  const homeHref = user?.role === 'PHOTOGRAPHE' ? '/dashboard' : user?.role === 'ADMIN' ? '/admin' : '/';
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E5E7EB] select-none">
-      {/* Role Switcher bar - Discreet & professional for instant role preview */}
-      <div className="bg-[#121212] text-xs text-neutral-300 px-4 py-1.5 flex items-center justify-between flex-wrap gap-2 border-b border-neutral-800">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-neutral-400">
-            <span className="w-2 h-2 rounded-full bg-[#F25C05] animate-pulse" />
-            Environnement Démo SaaS :
-          </span>
-          <span className="font-semibold text-white">
-            {role === 'VISITOR' && 'Visiteur Public'}
-            {role === 'PHOTOGRAPHE' && 'Espace Photographe (PAF Photography)'}
-            {role === 'ADMIN' && 'Super-Admin Plateforme'}
-            {role === 'CLIENT' && 'Client Invité (Galerie)'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setRole('VISITOR')}
-            className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-              role === 'VISITOR'
-                ? 'bg-[#F25C05] text-white font-medium'
-                : 'hover:bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            Accueil Public
-          </button>
-          <button
-            onClick={() => setRole('PHOTOGRAPHE')}
-            className={`px-2.5 py-1 rounded flex items-center gap-1 transition-colors cursor-pointer ${
-              role === 'PHOTOGRAPHE'
-                ? 'bg-[#F25C05] text-white font-medium'
-                : 'hover:bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            <Camera className="w-3.5 h-3.5" />
-            Photographe Pro
-          </button>
-          <button
-            onClick={() => setRole('ADMIN')}
-            className={`px-2.5 py-1 rounded flex items-center gap-1 transition-colors cursor-pointer ${
-              role === 'ADMIN'
-                ? 'bg-[#F25C05] text-white font-medium'
-                : 'hover:bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            Admin
-            {pendingPhotographers.length > 0 && (
-              <span className="bg-[#EF4444] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                {pendingPhotographers.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setRole('CLIENT')}
-            className={`px-2.5 py-1 rounded flex items-center gap-1 transition-colors cursor-pointer ${
-              role === 'CLIENT'
-                ? 'bg-[#F25C05] text-white font-medium'
-                : 'hover:bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Vue Client (Galerie)
-          </button>
-        </div>
-      </div>
-
-      {/* Main Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <div
-          onClick={() => {
-            if (role === 'PHOTOGRAPHE') navigateTo('photographer_dashboard');
-            else if (role === 'ADMIN') navigateTo('admin_dashboard');
-            else navigateTo('landing');
-          }}
+        <button
+          onClick={() => navigate(homeHref)}
           className="flex items-center gap-2.5 cursor-pointer"
         >
           <div className="w-9 h-9 rounded-lg bg-[#121212] flex items-center justify-center text-white shadow-xs border border-neutral-800">
             <Camera className="w-5 h-5 text-[#F25C05]" />
           </div>
-          <div>
+          <div className="text-left">
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-lg tracking-tight text-[#111827]">
-                KIRA
-              </span>
+              <span className="font-bold text-lg tracking-tight text-[#111827]">KIRA</span>
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#F25C05] bg-[#FFF1EB] px-1.5 py-0.5 rounded">
                 PRO
               </span>
@@ -110,85 +46,83 @@ export const Header: React.FC = () => {
               Plateforme SaaS Photographie
             </p>
           </div>
-        </div>
+        </button>
 
-        {/* Navigation context-sensitive */}
         <div className="flex items-center gap-3 sm:gap-4">
           {isLanding && (
             <div className="hidden md:flex items-center gap-6 text-sm text-[#6B7280]">
-              <a href="#fonctionnement" className="hover:text-[#111827] transition-colors">
-                Fonctionnement
-              </a>
-              <a href="#photographes" className="hover:text-[#111827] transition-colors">
-                Pour les Photographes
-              </a>
-              <a href="#clients" className="hover:text-[#111827] transition-colors">
-                Pour les Clients
-              </a>
-              <a href="#categories" className="hover:text-[#111827] transition-colors">
-                Catégories
-              </a>
-              <a href="#tarifs" className="hover:text-[#111827] transition-colors">
-                Tarifs
-              </a>
+              <a href="#fonctionnement" className="hover:text-[#111827] transition-colors">Fonctionnement</a>
+              <a href="#photographes" className="hover:text-[#111827] transition-colors">Pour les Photographes</a>
+              <a href="#clients" className="hover:text-[#111827] transition-colors">Pour les Clients</a>
+              <a href="#categories" className="hover:text-[#111827] transition-colors">Catégories</a>
+              <a href="#tarifs" className="hover:text-[#111827] transition-colors">Tarifs</a>
             </div>
           )}
 
-          {/* Action CTAs */}
           <div className="flex items-center gap-2.5">
-            {isLanding && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigateTo('register_photographer')}
-                >
-                  Devenir photographe
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setRole('PHOTOGRAPHE')}
-                >
-                  Espace Pro
-                </Button>
-              </>
-            )}
-
-            {isClientView && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#6B7280] hidden sm:inline">
-                  Accès Invité Sécurisé
+            {isClientView && cart.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-[#FFF1EB] text-[#F25C05] border border-orange-200 px-3 py-1 rounded-md text-xs font-semibold">
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>
+                  {cart.length} photo{cart.length > 1 ? 's' : ''} sélectionnée{cart.length > 1 ? 's' : ''}
                 </span>
-                {cart.length > 0 && (
-                  <div className="flex items-center gap-1.5 bg-[#FFF1EB] text-[#F25C05] border border-orange-200 px-3 py-1 rounded-md text-xs font-semibold">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>
-                      {cart.length} photo{cart.length > 1 ? 's' : ''} sélectionnée{cart.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {isPhotogView && (
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 text-xs text-[#6B7280]">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span>PAF Photography • Statut : </span>
-                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    APPROUVÉ
-                  </span>
-                </div>
               </div>
             )}
 
             {isAdminView && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5" />
-                  Super-Admin Actif
-                </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                Super-Admin
+              </span>
+            )}
+
+            {isPhotogView && user?.photographerStatus && (
+              <div className="hidden sm:flex items-center gap-2 text-xs text-[#6B7280]">
+                <span className={`w-2 h-2 rounded-full ${user.photographerStatus === 'APPROUVÉ' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                <span>Statut : </span>
+                <span className="font-semibold text-[#111827]">{user.photographerStatus}</span>
+              </div>
+            )}
+
+            {!user && isLanding && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/inscription-photographe')}>
+                  Devenir photographe
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => navigate('/connexion')}>
+                  Connexion
+                </Button>
+              </>
+            )}
+
+            {!user && !isLanding && !isClientView && (
+              <Button variant="secondary" size="sm" onClick={() => navigate('/connexion')}>
+                Connexion
+              </Button>
+            )}
+
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#111827] hover:bg-[#F8F9FA] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span className="hidden sm:inline">{user.firstName || user.email}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#6B7280]" />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-20 py-1 text-xs">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-[#111827] hover:bg-[#F8F9FA] cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" /> Déconnexion
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

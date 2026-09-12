@@ -123,7 +123,12 @@ def confirm_payment(*, provider_reference: str, succeeded: bool, raw_payload: di
     controls directly. Idempotent: replays of the same webhook are a no-op
     once the order is already COMPLETED.
     """
-    payment = Payment.objects.select_for_update().select_related("order", "order__photographer__wallet").get(
+    # Note: does NOT select_related the wallet here — it's a reverse
+    # OneToOne (PhotographerProfile -> Wallet), so Django would join it
+    # with a LEFT OUTER JOIN, and PostgreSQL refuses FOR UPDATE on the
+    # nullable side of an outer join. The wallet is locked separately
+    # below via its own select_for_update().
+    payment = Payment.objects.select_for_update().select_related("order", "order__photographer").get(
         provider_reference=provider_reference
     )
     payment.raw_webhook_payload = raw_payload

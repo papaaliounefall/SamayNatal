@@ -114,10 +114,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      # frontend/package.json's dev script hardcodes Vite to --port=3000 —
-      # map the conventional 5173 host-side, but forward to where Vite
-      # actually listens inside the container.
-      - "5173:3000"
+      - "5173:5173"
     environment:
       VITE_API_BASE_URL: http://localhost:8010
 

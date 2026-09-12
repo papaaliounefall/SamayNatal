@@ -63,7 +63,9 @@ class EventSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         pin = validated_data.pop("access_pin", "")
         request = self.context["request"]
-        event = Event(photographer=request.user.photographer_profile, **validated_data)
+        photographer = request.user.photographer_profile
+        validated_data.setdefault("watermark_text", f"{photographer.business_name.upper()} © PROOF")
+        event = Event(photographer=photographer, **validated_data)
         event.set_pin(pin)
         event.save()
         Gallery.objects.create(event=event, name="Galerie Principale", is_default=True, privacy=event.privacy)
