@@ -1,0 +1,6 @@
+{
+  "name": "SaaS Photographie Professionnelle",
+  "description": "Plateforme professionnelle pour photographes et clients : gestion d'événements, galeries privées, QR code, vente et téléchargement HD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
