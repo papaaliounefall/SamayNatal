@@ -117,6 +117,10 @@ services:
       - "5173:5173"
     environment:
       VITE_API_BASE_URL: http://localhost:8010
+      # See vite.config.ts — makes the dev server poll for file changes
+      # instead of relying on filesystem events the bind mount won't
+      # deliver, so edits made on the host actually show up.
+      IN_DOCKER: "true"
 
 volumes:
   postgres_data:

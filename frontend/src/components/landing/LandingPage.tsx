@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../common/Button';
-import { Camera, QrCode, ShieldCheck, Lock, Sliders, ArrowRight, Check } from 'lucide-react';
+import { Camera, ShieldCheck, Lock, Sliders, ArrowRight, Check } from 'lucide-react';
 import { navigate } from '../../lib/router';
 import { fetchSubscriptionPlans } from '../../services/subscriptions';
 import { SubscriptionPlan } from '../../types/api';
+import { HeroPhotoBackground } from './HeroPhotoBackground';
 
-import heroImage from '../../assets/photos/mariage.jpg';
 import weddingImg from '../../assets/photos/marie.jpg';
 import sportImg from '../../assets/photos/foott.jpg';
 import schoolImg from '../../assets/photos/etude.jpg';
 import fashionImg from '../../assets/photos/shoot.jpg';
 import photographerAvatar from '../../assets/photos/foot.jpg';
+
+const heroSlides = [
+  { src: weddingImg, alt: 'Mariage photographié professionnellement', position: 'center 25%' },
+  { src: sportImg, alt: 'Photographe sportif en plein travail', position: 'center 30%' },
+  { src: fashionImg, alt: "Séance photo de mode en studio", position: 'center 35%' },
+];
 
 const categoriesList = [
   { label: 'Mariage & Réceptions', image: weddingImg },
@@ -28,64 +34,50 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen text-[#111827]">
-      {/* 1. HERO */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-[#E5E7EB]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            <div className="lg:col-span-6 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF1EB] border border-orange-200 text-xs font-semibold text-[#F25C05]">
-                <Camera className="w-3.5 h-3.5" />
-                <span>La référence SaaS pour photographes événementiels</span>
-              </div>
+      {/* 1. HERO — vraies photos en fond, fondu lent + léger zoom, texte sur un panneau clair */}
+      <section className="relative overflow-hidden border-b border-[#E5E7EB] min-h-[560px] sm:min-h-[620px] flex items-center">
+        <HeroPhotoBackground slides={heroSlides} />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/20" />
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#111827] leading-[1.12]">
-                Vos photos. <br />
-                Vos clients. <br />
-                <span className="text-[#F25C05]">Un seul espace.</span>
-              </h1>
-
-              <p className="text-base sm:text-lg text-[#6B7280] max-w-xl font-normal leading-relaxed">
-                Une plateforme professionnelle pour organiser, partager et valoriser vos photos, de l'événement
-                jusqu'au client. Fini les envois compressés sur WhatsApp et les souvenirs perdus.
-              </p>
-
-              <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                <Button variant="primary" size="lg" onClick={() => navigate('/inscription-photographe')} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
-                  Devenir photographe
-                </Button>
-                <Button variant="secondary" size="lg" onClick={() => navigate('/connexion')}>
-                  Se connecter
-                </Button>
-              </div>
-
-              <div className="pt-6 border-t border-[#E5E7EB] grid grid-cols-3 gap-4 text-xs text-[#6B7280]">
-                <div>
-                  <p className="font-bold text-[#111827] text-base">Originaux HD</p>
-                  <p className="mt-0.5">Stockage privé & sécurisé</p>
-                </div>
-                <div>
-                  <p className="font-bold text-[#111827] text-base">QR Code 1-Click</p>
-                  <p className="mt-0.5">Accès direct sur événement</p>
-                </div>
-                <div>
-                  <p className="font-bold text-[#111827] text-base">Monétisation</p>
-                  <p className="mt-0.5">Wave, Orange Money & CB</p>
-                </div>
-              </div>
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-xl bg-white/95 rounded-2xl border border-[#E5E7EB] shadow-sm p-6 sm:p-10 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF1EB] border border-orange-200 text-xs font-semibold text-[#F25C05]">
+              <Camera className="w-3.5 h-3.5" />
+              <span>La référence SaaS pour photographes événementiels</span>
             </div>
 
-            <div className="lg:col-span-6 relative">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-[#E5E7EB] bg-[#121212]">
-                <img src={heroImage} alt="Photographie de mariage professionnelle" className="w-full h-[460px] object-cover" />
-                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-xl p-3 shadow-lg border border-[#E5E7EB] flex items-center gap-3 max-w-xs">
-                  <div className="w-10 h-10 rounded-lg bg-[#121212] flex items-center justify-center text-white shrink-0">
-                    <QrCode className="w-5 h-5 text-[#F25C05]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-[#111827]">Retrouvez vos photos</p>
-                    <p className="text-[10px] text-[#6B7280]">Scannez le QR code de l'événement</p>
-                  </div>
-                </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#111827] leading-[1.12]">
+              Vos photos. <br />
+              Vos clients. <br />
+              <span className="text-[#F25C05]">Un seul espace.</span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-[#6B7280] max-w-xl font-normal leading-relaxed">
+              Une plateforme professionnelle pour organiser, partager et valoriser vos photos, de l'événement
+              jusqu'au client. Fini les envois compressés sur WhatsApp et les souvenirs perdus.
+            </p>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <Button variant="primary" size="lg" onClick={() => navigate('/inscription-photographe')} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
+                Devenir photographe
+              </Button>
+              <Button variant="secondary" size="lg" onClick={() => navigate('/connexion')}>
+                Se connecter
+              </Button>
+            </div>
+
+            <div className="pt-6 border-t border-[#E5E7EB] grid grid-cols-3 gap-4 text-xs text-[#6B7280]">
+              <div>
+                <p className="font-bold text-[#111827] text-base">Originaux HD</p>
+                <p className="mt-0.5">Stockage privé & sécurisé</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#111827] text-base">QR Code 1-Click</p>
+                <p className="mt-0.5">Accès direct sur événement</p>
+              </div>
+              <div>
+                <p className="font-bold text-[#111827] text-base">Monétisation</p>
+                <p className="mt-0.5">Wave, Orange Money & CB</p>
               </div>
             </div>
           </div>
