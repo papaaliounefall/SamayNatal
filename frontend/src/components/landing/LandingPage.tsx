@@ -5,22 +5,35 @@ import { navigate } from '../../lib/router';
 import { fetchSubscriptionPlans } from '../../services/subscriptions';
 import { SubscriptionPlan } from '../../types/api';
 import { HeroPhotoBackground } from './HeroPhotoBackground';
+import { PhotoCollage, CollageCard } from './PhotoCollage';
 
 import weddingImg from '../../assets/photos/marie.jpg';
+import weddingImg2 from '../../assets/photos/mariage.jpg';
 import sportImg from '../../assets/photos/foott.jpg';
+import sportActionImg from '../../assets/photos/IMG_9401.jpg';
 import schoolImg from '../../assets/photos/etude.jpg';
 import fashionImg from '../../assets/photos/shoot.jpg';
+import portraitImg from '../../assets/photos/im.jpg';
 import photographerAvatar from '../../assets/photos/foot.jpg';
+import cameraHandsImg from '../../assets/photos/pho.jpg';
 
-const heroSlides = [
-  { src: weddingImg, alt: 'Mariage photographié professionnellement', position: 'center 25%' },
-  { src: sportImg, alt: 'Photographe sportif en plein travail', position: 'center 30%' },
-  { src: fashionImg, alt: "Séance photo de mode en studio", position: 'center 35%' },
+const heroBackgroundSlides = [
+  { src: cameraHandsImg, alt: '', position: 'center' },
+  { src: fashionImg, alt: '', position: 'center 20%' },
 ];
+
+const collageCards: CollageCard[] = [
+  { src: weddingImg2, alt: 'Mariage', className: 'w-40 h-52 top-0 left-4', rotate: -6 },
+  { src: sportActionImg, alt: 'Sport', className: 'w-36 h-44 top-4 left-48', rotate: 5 },
+  { src: portraitImg, alt: 'Mode', className: 'w-40 h-52 top-40 left-16', rotate: -4, position: '30% 15%' },
+  { src: schoolImg, alt: 'Remise de diplôme', className: 'w-36 h-44 top-52 left-56', rotate: 6 },
+];
+
+const collagePreviewThumbs = [weddingImg2, sportActionImg, schoolImg, portraitImg, sportImg, weddingImg];
 
 const categoriesList = [
   { label: 'Mariage & Réceptions', image: weddingImg },
-  { label: 'Sport & Tournois', image: sportImg },
+  { label: 'Sport & Tournois', image: sportActionImg },
   { label: 'Remise de diplômes & Écoles', image: schoolImg },
   { label: 'Mode & Défilés', image: fashionImg },
 ];
@@ -34,51 +47,61 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen text-[#111827]">
-      {/* 1. HERO — vraies photos en fond, fondu lent + léger zoom, texte sur un panneau clair */}
-      <section className="relative overflow-hidden border-b border-[#E5E7EB] min-h-[560px] sm:min-h-[620px] flex items-center">
-        <HeroPhotoBackground slides={heroSlides} />
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/20" />
+      {/* 1. HERO — photo réelle en fond assombri, texte blanc, galerie de photos flottante */}
+      <section className="relative overflow-hidden min-h-[600px] lg:min-h-[640px] flex items-center bg-[#121212]">
+        <HeroPhotoBackground slides={heroBackgroundSlides} />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-black/10" />
 
         <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="max-w-xl bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 shadow-sm p-6 sm:p-10 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF1EB] border border-orange-200 text-xs font-semibold text-[#F25C05]">
-              <Camera className="w-3.5 h-3.5" />
-              <span>La référence SaaS pour photographes événementiels</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            <div className="lg:col-span-6 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white backdrop-blur-sm">
+                <Camera className="w-3.5 h-3.5 text-[#F25C05]" />
+                <span>La référence SaaS pour photographes événementiels</span>
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.12]">
+                Vos photos. <br />
+                Vos clients. <br />
+                <span className="text-[#F25C05]">Une expérience plus simple.</span>
+              </h1>
+
+              <p className="text-base sm:text-lg text-neutral-300 max-w-xl font-normal leading-relaxed">
+                Organisez, partagez et valorisez vos photos dans une galerie professionnelle que vos clients
+                peuvent retrouver facilement. Fini les envois compressés sur WhatsApp.
+              </p>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <Button variant="primary" size="lg" onClick={() => navigate('/inscription-photographe')} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
+                  Devenir photographe
+                </Button>
+                <Button
+                  variant="overlay"
+                  size="lg"
+                  onClick={() => document.getElementById('fonctionnement')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Découvrir comment ça marche
+                </Button>
+              </div>
+
+              <div className="pt-6 border-t border-white/15 grid grid-cols-3 gap-4 text-xs text-neutral-400">
+                <div>
+                  <p className="font-bold text-white text-base">Originaux HD</p>
+                  <p className="mt-0.5">Stockage privé & sécurisé</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white text-base">QR Code 1-Click</p>
+                  <p className="mt-0.5">Accès direct sur événement</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white text-base">Monétisation</p>
+                  <p className="mt-0.5">Wave, Orange Money & CB</p>
+                </div>
+              </div>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#111827] leading-[1.12]">
-              Vos photos. <br />
-              Vos clients. <br />
-              <span className="text-[#F25C05]">Un seul espace.</span>
-            </h1>
-
-            <p className="text-base sm:text-lg text-[#6B7280] max-w-xl font-normal leading-relaxed">
-              Une plateforme professionnelle pour organiser, partager et valoriser vos photos, de l'événement
-              jusqu'au client. Fini les envois compressés sur WhatsApp et les souvenirs perdus.
-            </p>
-
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
-              <Button variant="primary" size="lg" onClick={() => navigate('/inscription-photographe')} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
-                Devenir photographe
-              </Button>
-              <Button variant="secondary" size="lg" onClick={() => navigate('/connexion')}>
-                Se connecter
-              </Button>
-            </div>
-
-            <div className="pt-6 border-t border-[#E5E7EB] grid grid-cols-3 gap-4 text-xs text-[#6B7280]">
-              <div>
-                <p className="font-bold text-[#111827] text-base">Originaux HD</p>
-                <p className="mt-0.5">Stockage privé & sécurisé</p>
-              </div>
-              <div>
-                <p className="font-bold text-[#111827] text-base">QR Code 1-Click</p>
-                <p className="mt-0.5">Accès direct sur événement</p>
-              </div>
-              <div>
-                <p className="font-bold text-[#111827] text-base">Monétisation</p>
-                <p className="mt-0.5">Wave, Orange Money & CB</p>
-              </div>
+            <div className="lg:col-span-6">
+              <PhotoCollage cards={collageCards} previewThumbs={collagePreviewThumbs} />
             </div>
           </div>
         </div>
@@ -335,7 +358,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Camera className="w-4 h-4 text-[#F25C05]" />
-              <span className="font-bold text-white text-sm">KIRA SaaS Photographie</span>
+              <span className="font-bold text-white text-sm">Samay Natal — SaaS Photographie</span>
               <span className="text-[10px] text-neutral-500">• Dakar, Sénégal</span>
             </div>
             <div className="flex items-center gap-6">

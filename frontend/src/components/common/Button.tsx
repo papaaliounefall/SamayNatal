@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'dark';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'dark' | 'overlay';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
@@ -41,6 +41,10 @@ export const Button: React.FC<ButtonProps> = ({
       'bg-transparent hover:bg-[#F8F9FA] text-[#6B7280] hover:text-[#111827] focus:ring-gray-200',
     dark:
       'bg-[#121212] hover:bg-[#262626] text-white border border-[#262626] focus:ring-neutral-700',
+    // For CTAs sitting directly on a photo/dark background (e.g. the Hero) —
+    // translucent so it reads as part of the scene rather than a UI chrome box.
+    overlay:
+      'bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm focus:ring-white/40',
   };
 
   return (

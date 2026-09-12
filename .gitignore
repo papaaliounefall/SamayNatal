@@ -17,3 +17,6 @@ backend/staticfiles/
 backend/media/
 backend/celerybeat-schedule
 
+# Claude Code local session state (not project source)
+.claude/
+
