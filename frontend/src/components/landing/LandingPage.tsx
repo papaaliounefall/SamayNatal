@@ -40,7 +40,7 @@ export const LandingPage: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/20" />
 
         <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="max-w-xl bg-white/95 rounded-2xl border border-[#E5E7EB] shadow-sm p-6 sm:p-10 space-y-6">
+          <div className="max-w-xl bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 shadow-sm p-6 sm:p-10 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF1EB] border border-orange-200 text-xs font-semibold text-[#F25C05]">
               <Camera className="w-3.5 h-3.5" />
               <span>La référence SaaS pour photographes événementiels</span>
