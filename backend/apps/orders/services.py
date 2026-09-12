@@ -1,8 +1,8 @@
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from apps.core.audit import record
+from apps.core.models import PlatformSettings
 from apps.events.models import Event
 from apps.photographers.models import LedgerEntry, Wallet
 from apps.photos.models import Photo, PhotoAccess
@@ -76,7 +76,7 @@ def create_order(*, event: Event, client_name: str, client_email: str, client_ph
 
     rows = _resolve_cart(event, cart_items)
     total_amount_cfa = sum(row["price_cfa"] for row in rows)
-    commission_rate = settings.PLATFORM_COMMISSION_RATE
+    commission_rate = PlatformSettings.load().commission_rate
     platform_commission_cfa = round(total_amount_cfa * commission_rate)
     photographer_earnings_cfa = total_amount_cfa - platform_commission_cfa
 

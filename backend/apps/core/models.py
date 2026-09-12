@@ -56,6 +56,30 @@ class AuditLog(models.Model):
         return f"{self.action} by {self.actor_label} @ {self.created_at:%Y-%m-%d %H:%M}"
 
 
+class PlatformSettings(models.Model):
+    """Single-row table of admin-tunable platform-wide settings.
+
+    Loaded via `PlatformSettings.load()` rather than queried directly so
+    there's exactly one place that creates the row on first access.
+    """
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    commission_rate = models.FloatField(default=0.10, help_text="e.g. 0.10 = 10%")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "PlatformSettings":
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self) -> str:
+        return f"Commission plateforme: {self.commission_rate * 100:.1f}%"
+
+
 class Notification(models.Model):
     """In-app / email notification queue entry for a user."""
 
