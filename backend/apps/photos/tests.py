@@ -33,14 +33,22 @@ def _make_event_and_gallery(profile: PhotographerProfile) -> tuple[Event, Galler
 
 
 class TempMediaTestCase(TestCase):
-    """Any test that saves a real file to a FileField must not write into
-    the developer's actual backend/media/ directory."""
+    """Any test that saves a real file to a FileField must neither write
+    into the developer's actual backend/media/ directory nor depend on a
+    real S3/MinIO bucket existing — the test suite must pass identically
+    whether it's run locally, in Docker, or in CI with no bucket set up."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls._media_root = tempfile.mkdtemp(prefix="samay_natal_test_media_")
-        cls._override = override_settings(MEDIA_ROOT=cls._media_root)
+        cls._override = override_settings(
+            MEDIA_ROOT=cls._media_root,
+            STORAGES={
+                "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+                "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+            },
+        )
         cls._override.enable()
 
     @classmethod

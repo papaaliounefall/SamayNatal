@@ -32,8 +32,11 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      # Host-side only — 9000/9001 are already taken by another project's
+      # MinIO container on this machine. Internal container-to-container
+      # traffic still uses "minio:9000" (the S3_ENDPOINT below), unaffected.
+      - "9010:9000"
+      - "9011:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -55,10 +58,17 @@ services:
       USE_REDIS: "True"
       USE_LOCAL_FILE_STORAGE: "False"
       S3_ENDPOINT: http://minio:9000
+      # Signed URLs are handed to the browser, which can't resolve the
+      # internal Docker hostname "minio" — sign them for the mapped host
+      # port instead (see apps/photos/storage.py).
+      S3_PUBLIC_ENDPOINT: http://localhost:9010
     volumes:
       - ./backend:/app
     ports:
-      - "8000:8000"
+      # Host-side only — 8000 is already taken by another project on this
+      # machine. Gunicorn/runserver still listens on 8000 inside the
+      # container; only the host mapping moves.
+      - "8010:8000"
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -106,7 +116,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: http://localhost:8010
 
 volumes:
   postgres_data:

@@ -139,6 +139,11 @@ AWS_ACCESS_KEY_ID = env("S3_ACCESS_KEY", default="")
 AWS_SECRET_ACCESS_KEY = env("S3_SECRET_KEY", default="")
 AWS_STORAGE_BUCKET_NAME = env("S3_BUCKET", default="samay-natal")
 AWS_S3_ENDPOINT_URL = env("S3_ENDPOINT", default="http://localhost:9000")
+# Only needed when the internal endpoint above isn't reachable from a
+# browser (e.g. Docker's "minio:9000" service hostname) — see
+# apps/photos/storage.py. Leave unset when S3_ENDPOINT is already public
+# (real S3/R2 in production, or MinIO exposed directly in local dev).
+AWS_S3_PUBLIC_ENDPOINT_URL = env("S3_PUBLIC_ENDPOINT", default="")
 AWS_S3_REGION_NAME = env("S3_REGION", default="us-east-1")
 AWS_DEFAULT_ACL = "private"
 AWS_QUERYSTRING_AUTH = True
