@@ -1,4 +1,5 @@
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -77,3 +78,33 @@ class AdminEndpointAccessTests(TestCase):
         self.assertIn(response.status_code, (403, 404))
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.status, PhotographerProfile.Status.EN_ATTENTE)
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class PhotographerStatusEmailTests(TestCase):
+    def setUp(self):
+        self.profile = register_photographer(
+            email="notify@test.com", password="TestPass123!", first_name="A", last_name="B",
+            phone="", business_name="Studio Notify", city="Dakar", country="Sénégal", bio="",
+            specialties=["mariage"],
+        )
+        self.admin = User.objects.create_superuser(email="admin2@test.com", password="AdminPass123!")
+
+    def test_approval_sends_an_email_to_the_photographer(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            change_photographer_status(
+                profile=self.profile, new_status=PhotographerProfile.Status.APPROUVE,
+                admin_user=self.admin, reason="Portfolio vérifié",
+            )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["notify@test.com"])
+        self.assertIn("approuvé", mail.outbox[0].subject.lower())
+
+    def test_rejection_sends_a_different_email(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            change_photographer_status(
+                profile=self.profile, new_status=PhotographerProfile.Status.REFUSE,
+                admin_user=self.admin, reason="Portfolio insuffisant",
+            )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Portfolio insuffisant", mail.outbox[0].body)

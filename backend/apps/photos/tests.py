@@ -1,4 +1,5 @@
 import io
+import os
 import shutil
 import tempfile
 
@@ -14,6 +15,7 @@ from apps.photographers.models import PhotographerProfile, Wallet
 from .access import can_download_original
 from .models import Photo, PhotoAccess
 from .security import InvalidPhotoUpload, validate_photo_upload
+from .services import bulk_create_photos
 
 
 def _make_approved_photographer() -> tuple[User, PhotographerProfile]:
@@ -157,3 +159,87 @@ class PhotographerPhotoIsolationTests(TempMediaTestCase):
         response = self.client_b.delete(f"/api/photos/{self.photo_a.id}/")
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Photo.objects.filter(pk=self.photo_a.pk).exists())
+
+
+class StorageQuotaTests(TempMediaTestCase):
+    """Real photos are almost always several MB, but the quota is tracked
+    in whole MB — so these use JPEG-hostile random noise to force a
+    meaningfully large compressed size instead of relying on a specific
+    compression ratio for a solid-color test image."""
+
+    def setUp(self):
+        self.user, self.profile = _make_approved_photographer()
+        self.event, self.gallery = _make_event_and_gallery(self.profile)
+
+    def _make_noisy_upload(self, name: str, size: int = 1200) -> SimpleUploadedFile:
+        raw = os.urandom(size * size * 3)
+        image = Image.frombytes("RGB", (size, size), raw)
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG", quality=90)
+        return SimpleUploadedFile(f"{name}.jpg", buf.getvalue(), content_type="image/jpeg")
+
+    def test_upload_rejected_when_it_would_exceed_quota(self):
+        self.profile.storage_max_mb = 0
+        self.profile.save(update_fields=["storage_max_mb"])
+        upload = self._make_noisy_upload("big")
+
+        created, errors = bulk_create_photos(
+            event=self.event, gallery=self.gallery, uploaded_files=[upload], uploader=self.user,
+        )
+
+        self.assertEqual(created, [])
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Quota", errors[0]["error"])
+        self.assertEqual(Photo.objects.count(), 0)
+
+    def test_successful_upload_increments_storage_used(self):
+        self.profile.storage_max_mb = 500
+        self.profile.save(update_fields=["storage_max_mb"])
+        upload = self._make_noisy_upload("ok")
+
+        created, errors = bulk_create_photos(
+            event=self.event, gallery=self.gallery, uploaded_files=[upload], uploader=self.user,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(created), 1)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.storage_used_mb, created[0].size_bytes // (1024 * 1024))
+
+
+class PhotoDeletionCleanupTests(TempMediaTestCase):
+    """Django never deletes the files behind a FileField on its own —
+    apps.photos.signals is what's actually responsible for not leaving
+    every deleted photo's files behind in storage forever."""
+
+    def setUp(self):
+        self.user, self.profile = _make_approved_photographer()
+        self.event, self.gallery = _make_event_and_gallery(self.profile)
+        self.photo = _make_photo(self.event, self.gallery)
+        self.photo.size_bytes = 3 * 1024 * 1024
+        self.photo.save(update_fields=["size_bytes"])
+        self.profile.storage_used_mb = 10
+        self.profile.save(update_fields=["storage_used_mb"])
+
+    def test_deleting_photo_removes_the_stored_file(self):
+        storage = self.photo.original.storage
+        name = self.photo.original.name
+        self.assertTrue(storage.exists(name))
+
+        self.photo.delete()
+
+        self.assertFalse(storage.exists(name))
+
+    def test_deleting_photo_reclaims_storage_quota(self):
+        self.photo.delete()
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.storage_used_mb, 7)  # 10 - 3
+
+    def test_storage_used_never_goes_negative(self):
+        self.profile.storage_used_mb = 1
+        self.profile.save(update_fields=["storage_used_mb"])
+
+        self.photo.delete()  # would be 1 - 3 = -2 without clamping
+
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.storage_used_mb, 0)

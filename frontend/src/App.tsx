@@ -4,6 +4,8 @@ import { CartProvider } from './context/CartContext';
 import { Header } from './components/common/Header';
 import { LandingPage } from './components/landing/LandingPage';
 import { LoginPage } from './components/auth/LoginPage';
+import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/auth/ResetPasswordPage';
 import { RegisterPhotographerPage } from './components/auth/RegisterPhotographerModal';
 import { PhotographerDashboard } from './components/photographer/PhotographerDashboard';
 import { EventDetailView } from './components/photographer/EventDetailView';
@@ -51,10 +53,13 @@ const AppContent: React.FC = () => {
 
   const galleryMatch = path.match(/^\/g\/([^/]+)\/?$/);
   const eventDetailMatch = path.match(/^\/dashboard\/evenements\/([^/]+)\/?$/);
+  const resetPasswordMatch = path.match(/^\/reinitialiser-mot-de-passe\/([^/]+)\/([^/]+)\/?$/);
 
   const renderRoute = () => {
     if (path === '/' || path === '') return <LandingPage />;
     if (path === '/connexion') return <LoginPage />;
+    if (path === '/mot-de-passe-oublie') return <ForgotPasswordPage />;
+    if (resetPasswordMatch) return <ResetPasswordPage uid={resetPasswordMatch[1]} token={resetPasswordMatch[2]} />;
     if (path === '/inscription-photographe') return <RegisterPhotographerPage />;
     if (path === '/dashboard') {
       return (

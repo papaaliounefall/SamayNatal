@@ -3,8 +3,42 @@ from django.db import transaction
 
 from apps.accounts.models import User
 from apps.core.audit import record
+from apps.core.tasks import send_email_task
 
 from .models import PhotographerProfile, PhotographerStatusChange, Wallet
+
+_STATUS_EMAIL_COPY = {
+    PhotographerProfile.Status.APPROUVE: (
+        "Votre profil photographe a été approuvé",
+        "Bonne nouvelle : votre profil professionnel a été approuvé. Vous pouvez dès maintenant "
+        "vous connecter et créer votre premier événement.",
+    ),
+    PhotographerProfile.Status.REFUSE: (
+        "Votre candidature n'a pas été retenue",
+        "Après examen de votre dossier, nous ne sommes pas en mesure d'activer votre profil "
+        "photographe pour le moment.",
+    ),
+    PhotographerProfile.Status.SUSPENDU: (
+        "Votre compte a été suspendu",
+        "Votre compte photographe a été suspendu par l'administration. Vos événements et galeries "
+        "existants restent en l'état mais ne sont plus modifiables tant que le compte est suspendu.",
+    ),
+}
+
+
+def _notify_photographer_status_change(profile: PhotographerProfile, new_status: str, reason: str) -> None:
+    copy = _STATUS_EMAIL_COPY.get(new_status)
+    if not copy:
+        return
+    subject, body = copy
+    message = f"Bonjour {profile.business_name},\n\n{body}"
+    if reason:
+        message += f"\n\nMotif indiqué par l'administrateur : {reason}"
+    send_email_task.delay(
+        subject=f"{subject} — Samay Natal",
+        message=message,
+        recipient_list=[profile.user.email],
+    )
 
 
 @transaction.atomic
@@ -66,4 +100,5 @@ def change_photographer_status(*, profile: PhotographerProfile, new_status: str,
         details=reason,
         request=request,
     )
+    transaction.on_commit(lambda: _notify_photographer_status_change(profile, new_status, reason))
     return profile

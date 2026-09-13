@@ -82,6 +82,16 @@ export const LoginPage: React.FC = () => {
             </p>
           )}
 
+          <div className="text-right -mt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/mot-de-passe-oublie')}
+              className="text-xs text-[#6B7280] hover:text-[#F25C05] cursor-pointer"
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
+
           <Button
             type="submit"
             variant="primary"

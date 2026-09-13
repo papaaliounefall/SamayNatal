@@ -1,18 +1,29 @@
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator
 from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from datetime import timedelta
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.audit import record
+from apps.core.tasks import send_email_task
 
 from .models import User
-from .serializers import LoginSerializer, RegisterClientSerializer, UserSerializer
+from .serializers import (
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RegisterClientSerializer,
+    UserSerializer,
+)
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
@@ -160,3 +171,73 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class PasswordResetRequestView(APIView):
+    """Always returns the same response whether or not the email matches
+    an account — confirming/denying an email's existence here is a user
+    enumeration vector."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"].lower()
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            reset_url = f"{settings.FRONTEND_BASE_URL}/reinitialiser-mot-de-passe/{uid}/{token}"
+            send_email_task.delay(
+                subject="Réinitialisation de votre mot de passe — Samay Natal",
+                message=(
+                    "Bonjour,\n\n"
+                    "Vous avez demandé la réinitialisation de votre mot de passe.\n"
+                    f"Cliquez sur ce lien pour en choisir un nouveau :\n{reset_url}\n\n"
+                    "Ce lien n'est valable qu'une seule fois. Si vous n'êtes pas à l'origine "
+                    "de cette demande, ignorez cet email — votre mot de passe reste inchangé."
+                ),
+                recipient_list=[user.email],
+            )
+            record(actor=user, action="DEMANDE_REINITIALISATION_MDP", target=user, request=request)
+
+        return Response({"detail": "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé."})
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"detail": "Lien de réinitialisation invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, serializer.validated_data["token"]):
+            return Response(
+                {"detail": "Lien de réinitialisation invalide ou expiré."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.save()
+
+        # A password reset should end every existing session, not just
+        # this request's — otherwise a stolen refresh token survives the
+        # very action meant to lock the attacker out.
+        for outstanding in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
+
+        record(actor=user, action="REINITIALISATION_MOT_DE_PASSE", target=user, request=request)
+        return Response({"detail": "Mot de passe réinitialisé avec succès."})

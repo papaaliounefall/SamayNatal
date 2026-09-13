@@ -51,3 +51,13 @@ export async function silentRefresh(): Promise<AuthUser | null> {
     return null;
   }
 }
+
+/** Always resolves — the backend deliberately never reveals whether the
+ * email matches an account, so there's nothing to branch on here either. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await api.post('/api/auth/password-reset/', { email });
+}
+
+export async function confirmPasswordReset(uid: string, token: string, newPassword: string): Promise<void> {
+  await api.post('/api/auth/password-reset-confirm/', { uid, token, newPassword });
+}

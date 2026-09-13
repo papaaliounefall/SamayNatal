@@ -1,14 +1,30 @@
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from apps.core.audit import record
 from apps.core.models import PlatformSettings
+from apps.core.tasks import send_email_task
 from apps.events.models import Event
 from apps.photographers.models import LedgerEntry, Wallet
 from apps.photos.models import Photo, PhotoAccess
 
 from .models import Order, OrderItem, Payment
 from .providers import get_provider
+
+
+def _notify_order_confirmed(order: Order) -> None:
+    gallery_url = f"{settings.FRONTEND_BASE_URL}/g/{order.event.slug}"
+    send_email_task.delay(
+        subject=f"Confirmation de votre commande {order.order_number} — Samay Natal",
+        message=(
+            f"Bonjour {order.client_name},\n\n"
+            f"Votre paiement de {order.total_amount_cfa} CFA pour \"{order.event.title}\" a été confirmé.\n"
+            f"Vos photos en haute définition sont disponibles sans filigrane depuis la galerie :\n{gallery_url}\n\n"
+            f"Référence de commande : {order.order_number}"
+        ),
+        recipient_list=[order.client_email],
+    )
 
 
 class CartValidationError(Exception):
@@ -174,4 +190,5 @@ def confirm_payment(*, provider_reference: str, succeeded: bool, raw_payload: di
 
     record(actor=None, action="PAIEMENT_VALIDE", target=order, target_label=order.order_number,
            details=f"{order.total_amount_cfa} CFA via {order.payment_method}")
+    transaction.on_commit(lambda: _notify_order_confirmed(order))
     return order
