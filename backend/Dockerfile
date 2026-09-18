@@ -19,4 +19,8 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# $PORT is injected by the hosting platform (Render, etc.) and varies per
+# deploy — 8000 stays as the local/docker-compose fallback. Migrations run
+# here rather than as a separate step so this image is deployable as a
+# single web service with no extra platform-specific "release phase" setup.
+CMD sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3"

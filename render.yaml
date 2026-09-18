@@ -1,0 +1,200 @@
+# Render Blueprint — see https://render.com/docs/blueprint-spec
+#
+# After the first deploy, three values only exist once Render has
+# assigned real URLs (ALLOWED_HOSTS, FRONTEND_BASE_URL/CORS/CSRF,
+# VITE_API_BASE_URL) — they're left blank below ("sync: false") on
+# purpose. Fill them in from the Render dashboard once each service has
+# a URL, then redeploy samaynatal-backend and samaynatal-frontend.
+#
+# SECRET_KEY must be the SAME value on all three backend services
+# (web, celery worker, celery beat) — generate one random value
+# (e.g. `python -c "import secrets; print(secrets.token_urlsafe(50))"`)
+# and paste it into all three.
+
+databases:
+  - name: samaynatal-db
+    databaseName: samay_natal
+    user: samay_natal
+    plan: free
+
+services:
+  - type: redis
+    name: samaynatal-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: samaynatal-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /api/admin/health/
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      # Render's own domain for this service, e.g. samaynatal-backend.onrender.com
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: samaynatal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: samaynatal-redis
+          property: connectionString
+      - key: USE_REDIS
+        value: "True"
+      - key: USE_LOCAL_FILE_STORAGE
+        value: "False"
+      - key: PLATFORM_COMMISSION_RATE
+        value: "0.10"
+      - key: PAYMENT_PROVIDER
+        value: MOCK
+      - key: WHATSAPP_PROVIDER
+        value: MOCK
+      # Object storage — Render has no built-in S3-compatible service.
+      # Fill these in with a real provider (Cloudflare R2 recommended,
+      # or AWS S3 / Backblaze B2) before going live; uploads/downloads
+      # won't work until they're set.
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      # Full URL of the frontend static site (with https://), e.g.
+      # https://samaynatal-frontend.onrender.com
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      # Real SMTP credentials (e.g. Resend, SendGrid, Mailgun) — required
+      # in production, see config/settings/production.py.
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      # Leave blank to keep WhatsApp in MOCK mode (logs instead of
+      # sending) — fill in once you have a Twilio account.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+
+  - type: worker
+    name: samaynatal-celery-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A config worker --loglevel=info
+    plan: starter
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: samaynatal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: samaynatal-redis
+          property: connectionString
+      - key: USE_REDIS
+        value: "True"
+      - key: USE_LOCAL_FILE_STORAGE
+        value: "False"
+      - key: WHATSAPP_PROVIDER
+        value: MOCK
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+
+  - type: worker
+    name: samaynatal-celery-beat
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A config beat --loglevel=info
+    plan: starter
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: samaynatal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: samaynatal-redis
+          property: connectionString
+      - key: USE_REDIS
+        value: "True"
+
+  - type: web
+    name: samaynatal-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Full URL of samaynatal-backend (with https://). Vite bakes this
+      # in at BUILD time, so changing it requires a "Manual Deploy" to
+      # take effect, not just a settings save.
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
