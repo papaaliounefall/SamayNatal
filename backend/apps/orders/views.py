@@ -6,13 +6,26 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.core.permissions import IsApprovedPhotographer
+from apps.core.permissions import IsAdmin, IsApprovedPhotographer, IsClient
 from apps.events.models import Event
 
 from .models import Order
 from .providers import get_provider
-from .serializers import CreateOrderSerializer, DevConfirmPaymentSerializer, OrderSerializer
-from .services import CartValidationError, confirm_payment, create_order
+from .serializers import (
+    AdminOrderSerializer,
+    ClientGallerySummarySerializer,
+    ClientSummarySerializer,
+    CreateOrderSerializer,
+    DevConfirmPaymentSerializer,
+    OrderSerializer,
+)
+from .services import (
+    CartValidationError,
+    confirm_payment,
+    create_order,
+    list_clients_for_photographer,
+    list_galleries_for_client,
+)
 
 
 class CreateOrderView(APIView):
@@ -102,4 +115,44 @@ class PhotographerOrderViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["payment_status", "event"]
 
     def get_queryset(self):
-        return Order.objects.filter(photographer=self.request.user.photographer_profile).prefetch_related("items")
+        return (
+            Order.objects.filter(photographer=self.request.user.photographer_profile)
+            .select_related("event")
+            .prefetch_related("items")
+        )
+
+
+class PhotographerClientListView(APIView):
+    """A photographer's clients, derived entirely from their own Order
+    history — there is no separate Client model to keep in sync."""
+
+    permission_classes = [IsApprovedPhotographer]
+
+    def get(self, request):
+        clients = list_clients_for_photographer(request.user.photographer_profile)
+        return Response(ClientSummarySerializer(clients, many=True).data)
+
+
+class ClientGalleryListView(APIView):
+    """The galleries a logged-in client has purchased into, derived
+    entirely from their own Order history matched by email — mirrors
+    PhotographerClientListView but grouped by event instead of by buyer."""
+
+    permission_classes = [IsClient]
+
+    def get(self, request):
+        galleries = list_galleries_for_client(request.user.email)
+        return Response(ClientGallerySummarySerializer(galleries, many=True).data)
+
+
+class AdminOrderViewSet(viewsets.ReadOnlyModelViewSet):
+    """Platform-wide order visibility for support/fraud investigation —
+    an admin never creates or edits an order, only reads it."""
+
+    permission_classes = [IsAdmin]
+    serializer_class = AdminOrderSerializer
+    filterset_fields = ["payment_status", "payment_method"]
+    search_fields = ["order_number", "client_name", "client_email"]
+
+    def get_queryset(self):
+        return Order.objects.select_related("event", "photographer").prefetch_related("items").order_by("-created_at")

@@ -8,7 +8,10 @@ from PIL import Image, ImageDraw, ImageFont
 logger = logging.getLogger(__name__)
 
 THUMBNAIL_MAX_SIZE = (500, 500)
-PREVIEW_MAX_SIZE = (1600, 1600)
+# Capped well below print-usable resolution — large enough to look sharp
+# browsing on a phone, small enough that a screenshot of it is a poor
+# substitute for the paid original (which is never capped like this).
+PREVIEW_MAX_SIZE = (1100, 1100)
 JPEG_QUALITY = 85
 
 

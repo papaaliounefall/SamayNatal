@@ -6,6 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+frontend/test-results/
+frontend/playwright-report/
 
 # Backend (Python/Django)
 backend/.venv/

@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.accounts.models import User
 
-from .models import LedgerEntry, PhotographerProfile, PhotographerStatusChange, Wallet
+from .models import LedgerEntry, PayoutRequest, PhotographerProfile, PhotographerStatusChange, Wallet
 
 VALID_SPECIALTIES = {
     "mariage", "sport", "bapteme", "anniversaire", "evenement_religieux", "concert",
@@ -83,3 +83,33 @@ class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
         fields = ["balance_cfa", "updated_at", "entries"]
+
+
+class PayoutRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PayoutRequest
+        fields = ["id", "amount_cfa", "method", "phone_number", "status", "admin_note", "processed_at", "created_at"]
+        read_only_fields = ["id", "status", "admin_note", "processed_at", "created_at"]
+
+
+class CreatePayoutRequestSerializer(serializers.Serializer):
+    amount_cfa = serializers.IntegerField(min_value=1)
+    method = serializers.ChoiceField(choices=PayoutRequest.Method.choices)
+    phone_number = serializers.CharField(max_length=30)
+
+
+class AdminPayoutRequestSerializer(serializers.ModelSerializer):
+    photographer_business_name = serializers.CharField(source="photographer.business_name", read_only=True)
+    processed_by_label = serializers.CharField(source="processed_by.get_full_name", default="", read_only=True)
+
+    class Meta:
+        model = PayoutRequest
+        fields = [
+            "id", "photographer", "photographer_business_name", "amount_cfa", "method", "phone_number",
+            "status", "admin_note", "processed_at", "processed_by_label", "created_at",
+        ]
+        read_only_fields = fields
+
+
+class PayoutActionSerializer(serializers.Serializer):
+    note = serializers.CharField(required=False, allow_blank=True, default="")

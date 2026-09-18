@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import { Paginated, PhotographerProfile, Wallet } from '../types/api';
+import { AdminPayoutRequest, Paginated, PayoutMethod, PayoutRequest, PhotographerProfile, Wallet } from '../types/api';
 
 export interface PhotographerRegisterPayload {
   email: string;
@@ -30,6 +30,37 @@ export function updateMyProfile(data: Partial<PhotographerProfile>): Promise<Pho
 
 export function fetchMyWallet(): Promise<Wallet> {
   return api.get('/api/photographers/me/wallet/');
+}
+
+export function fetchAvailablePayoutBalance(): Promise<{ availableBalanceCfa: number }> {
+  return api.get('/api/payouts/available-balance/');
+}
+
+export function fetchMyPayouts(): Promise<Paginated<PayoutRequest>> {
+  return api.get('/api/payouts/?page_size=100');
+}
+
+export function requestPayout(data: { amountCfa: number; method: PayoutMethod; phoneNumber: string }): Promise<PayoutRequest> {
+  return api.post('/api/payouts/', data);
+}
+
+export interface AdminPayoutListParams {
+  status?: string;
+}
+
+export function adminListPayouts(params: AdminPayoutListParams = {}): Promise<Paginated<AdminPayoutRequest>> {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== 'ALL') query.set('status', params.status);
+  query.set('page_size', '100');
+  return api.get(`/api/admin/payouts/?${query.toString()}`);
+}
+
+export function adminApprovePayout(id: string, note?: string): Promise<AdminPayoutRequest> {
+  return api.post(`/api/admin/payouts/${id}/approve/`, { note });
+}
+
+export function adminRejectPayout(id: string, note?: string): Promise<AdminPayoutRequest> {
+  return api.post(`/api/admin/payouts/${id}/reject/`, { note });
 }
 
 export interface AdminPhotographerListParams {

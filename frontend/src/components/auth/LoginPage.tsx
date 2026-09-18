@@ -4,6 +4,14 @@ import { Button } from '../common/Button';
 import { ApiError } from '../../lib/api';
 import { navigate } from '../../lib/router';
 import { Camera, LogIn } from 'lucide-react';
+import { AuthUser } from '../../types/api';
+
+const redirectPathForRole = (role: AuthUser['role']): string => {
+  if (role === 'ADMIN') return '/admin';
+  if (role === 'PHOTOGRAPHE') return '/dashboard';
+  if (role === 'CLIENT') return '/mes-galeries';
+  return '/';
+};
 
 export const LoginPage: React.FC = () => {
   const { login, user } = useAuth();
@@ -13,7 +21,7 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (user) {
-    navigate(user.role === 'ADMIN' ? '/admin' : user.role === 'PHOTOGRAPHE' ? '/dashboard' : '/');
+    navigate(redirectPathForRole(user.role));
     return null;
   }
 
@@ -23,7 +31,7 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const loggedInUser = await login(email, password);
-      navigate(loggedInUser.role === 'ADMIN' ? '/admin' : loggedInUser.role === 'PHOTOGRAPHE' ? '/dashboard' : '/');
+      navigate(redirectPathForRole(loggedInUser.role));
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 423) {
@@ -48,17 +56,19 @@ export const LoginPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#111827]">Connexion</h1>
-            <p className="text-xs text-[#6B7280]">Espace photographe ou administration</p>
+            <p className="text-xs text-[#6B7280]">Espace client, photographe ou administration</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div>
-            <label className="block text-xs font-semibold text-[#111827] mb-1">Adresse email</label>
+            <label htmlFor="login-email" className="block text-xs font-semibold text-[#111827] mb-1">Adresse email</label>
             <input
+              id="login-email"
               type="email"
               required
               autoFocus
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full text-sm px-3 py-2 border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
@@ -66,10 +76,12 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#111827] mb-1">Mot de passe</label>
+            <label htmlFor="login-password" className="block text-xs font-semibold text-[#111827] mb-1">Mot de passe</label>
             <input
+              id="login-password"
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full text-sm px-3 py-2 border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
@@ -77,7 +89,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
               {error}
             </p>
           )}

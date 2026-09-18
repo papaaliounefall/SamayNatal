@@ -246,6 +246,11 @@ PLATFORM_COMMISSION_RATE = env.float("PLATFORM_COMMISSION_RATE", default=0.10)
 # MOCK is the only implemented provider until Wave/Orange Money/Free
 # Money/card credentials exist — see apps/orders/providers/.
 PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", default="MOCK")
+# MOCK logs the message instead of sending — see apps/core/whatsapp/.
+WHATSAPP_PROVIDER = env("WHATSAPP_PROVIDER", default="MOCK")
+TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
+TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
+TWILIO_WHATSAPP_FROM = env("TWILIO_WHATSAPP_FROM", default="")
 SUBSCRIPTION_PLAN_LIMITS_MB = {
     "FREE": 5_000,
     "PRO": 100_000,

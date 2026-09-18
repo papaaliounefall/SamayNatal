@@ -11,6 +11,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsApprovedPhotographer
+from apps.photos.models import Photo
 
 from .access_control import can_view_event, mark_session_unlocked
 from .models import Event, Gallery
@@ -41,6 +42,14 @@ class EventViewSet(viewsets.ModelViewSet):
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+    @action(detail=True, methods=["post"], url_path="set-cover")
+    def set_cover(self, request, pk=None):
+        event = self.get_object()
+        photo = get_object_or_404(Photo, pk=request.data.get("photo_id"), event=event)
+        event.cover_photo = photo
+        event.save(update_fields=["cover_photo"])
+        return Response(EventSerializer(event, context={"request": request}).data)
 
 
 class GalleryViewSet(viewsets.ModelViewSet):

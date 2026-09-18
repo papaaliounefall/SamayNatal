@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import models
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
@@ -13,19 +14,24 @@ from apps.events.models import Event, Gallery
 
 from .access import can_download_original
 from .models import Photo
-from .serializers import HDDownloadRequestSerializer, PhotoSerializer, PublicPhotoSerializer
+from .serializers import HDDownloadRequestSerializer, PhotoSerializer, PhotoUpdateSerializer, PublicPhotoSerializer
 from .services import bulk_create_photos
 from .storage import signed_url
 
 
 class PhotographerPhotoViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
 ):
     """A photographer's own photos, across all their events.
 
-    Deliberately list/retrieve/destroy only — creation always goes
-    through PhotoUploadView, which is the only place upload validation
-    and processing kick-off happen.
+    Deliberately no create action — creation always goes through
+    PhotoUploadView, which is the only place upload validation and
+    processing kick-off happen. Update is restricted to the safe,
+    post-upload-editable fields (see PhotoUpdateSerializer).
     """
 
     permission_classes = [IsApprovedPhotographer]
@@ -34,6 +40,19 @@ class PhotographerPhotoViewSet(
 
     def get_queryset(self):
         return Photo.objects.filter(event__photographer=self.request.user.photographer_profile)
+
+    def get_serializer_class(self):
+        if self.action in ("update", "partial_update"):
+            return PhotoUpdateSerializer
+        return PhotoSerializer
+
+    def perform_update(self, serializer):
+        previous_gallery = serializer.instance.gallery
+        photo = serializer.save()
+        if photo.gallery_id != previous_gallery.id:
+            Gallery.objects.filter(pk=previous_gallery.pk).update(photo_count=max(0, previous_gallery.photo_count - 1))
+            Gallery.objects.filter(pk=photo.gallery_id).update(photo_count=models.F("photo_count") + 1)
+        record(actor=self.request.user, action="MODIFICATION_PHOTO", target_label=photo.title or photo.original_filename, request=self.request)
 
     def perform_destroy(self, instance):
         event, gallery = instance.event, instance.gallery

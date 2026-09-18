@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
 import { LightboxModal } from './LightboxModal';
 import { CheckoutModal } from './CheckoutModal';
 import { WatermarkOverlay } from '../common/WatermarkOverlay';
-import { Search, Lock, Heart, ShoppingBag, Share2, Check } from 'lucide-react';
+import { Search, Lock, Heart, ShoppingBag, Share2, Check, Download } from 'lucide-react';
 import { PublicEvent, PublicPhoto } from '../../types/api';
 import { fetchPublicEvent, unlockEvent } from '../../services/events';
-import { fetchPublicGalleryPhotos } from '../../services/photos';
+import { fetchPublicGalleryPhotos, requestHdDownload } from '../../services/photos';
 import { ApiError } from '../../lib/api';
 import { navigate } from '../../lib/router';
 
@@ -17,6 +18,7 @@ interface ClientGalleryViewProps {
 
 export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) => {
   const { cart, addToCart, isInCart } = useCart();
+  const { user, isLoading: authIsLoading } = useAuth();
 
   const [event, setEvent] = useState<PublicEvent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,17 +35,47 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
 
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [downloadingPhotoId, setDownloadingPhotoId] = useState<string | null>(null);
 
   const loadPhotosForGallery = async (evt: PublicEvent, galleryId: string) => {
+    // Passing the logged-in client's email lets the backend flag photos
+    // they've already purchased (hdAvailable) — guests with no account
+    // still see prices/cart as usual, since there's no email to check.
+    const clientEmail = user?.role === 'CLIENT' ? user.email : undefined;
     if (galleryId === 'all') {
-      const results = await Promise.all(evt.galleries.map((g) => fetchPublicGalleryPhotos(evt.slug, g.id)));
+      const results = await Promise.all(evt.galleries.map((g) => fetchPublicGalleryPhotos(evt.slug, g.id, clientEmail)));
       setPhotos(results.flat());
     } else {
-      setPhotos(await fetchPublicGalleryPhotos(evt.slug, galleryId));
+      setPhotos(await fetchPublicGalleryPhotos(evt.slug, galleryId, clientEmail));
+    }
+  };
+
+  const handleDownload = async (photo: PublicPhoto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || downloadingPhotoId) return;
+    setDownloadingPhotoId(photo.id);
+    try {
+      const res = await requestHdDownload(photo.id, user.email);
+      window.open(res.downloadUrl, '_blank', 'noopener');
+    } catch {
+      // A stale/expired grant is rare and not worth a dedicated error UI —
+      // the client can simply try again.
+    } finally {
+      setDownloadingPhotoId(null);
     }
   };
 
   useEffect(() => {
+    // Wait for auth to resolve first — whether this client has an
+    // authenticated session decides both the PIN bypass (server-side, via
+    // the access token) and which photos come back flagged hdAvailable
+    // (client-side, via the clientEmail query param below). Fetching
+    // before that resolves would silently treat a returning client as an
+    // anonymous guest on every fresh page load. hadSessionHint() means
+    // this only adds a real wait for visitors who actually have a
+    // session to restore — anonymous visitors resolve instantly.
+    if (authIsLoading) return;
+
     setIsLoading(true);
     fetchPublicEvent(slug)
       .then(async (evt) => {
@@ -57,7 +89,7 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
       })
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, authIsLoading]);
 
   if (isLoading) {
     return (
@@ -115,7 +147,9 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
 
           <form onSubmit={handlePinSubmit} className="space-y-4">
             <div>
+              <label htmlFor="gallery-pin" className="sr-only">Code PIN</label>
               <input
+                id="gallery-pin"
                 type="password"
                 maxLength={8}
                 placeholder="Code PIN"
@@ -124,7 +158,7 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
                 className="w-48 text-center text-lg font-mono tracking-widest px-3 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F25C05]"
                 autoFocus
               />
-              {pinError && <p className="text-xs text-red-600 mt-1 font-medium">Code PIN incorrect. Veuillez réessayer.</p>}
+              {pinError && <p role="alert" className="text-xs text-red-600 mt-1 font-medium">Code PIN incorrect. Veuillez réessayer.</p>}
             </div>
             <Button variant="primary" size="md" type="submit" className="w-full" isLoading={isUnlocking}>
               Déverrouiller l'accès
@@ -174,6 +208,21 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
             </div>
 
             <div className="flex items-center gap-2">
+              {user?.role === 'CLIENT' ? (
+                <button
+                  onClick={() => navigate('/mes-galeries')}
+                  className="text-xs text-[#111827] bg-[#F8F9FA] hover:bg-gray-100 border border-[#E5E7EB] px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  Mes galeries
+                </button>
+              ) : !user ? (
+                <button
+                  onClick={() => navigate('/connexion')}
+                  className="text-xs text-[#6B7280] hover:text-[#F25C05] px-2 transition-colors cursor-pointer"
+                >
+                  Se connecter
+                </button>
+              ) : null}
               <button
                 onClick={() => {
                   navigator.clipboard?.writeText(window.location.href);
@@ -196,6 +245,7 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
             <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
               <button
                 onClick={() => handleGalleryTabChange('all')}
+                aria-current={activeGalleryId === 'all' ? 'true' : undefined}
                 className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                   activeGalleryId === 'all' ? 'bg-white text-[#111827] shadow-xs border border-[#E5E7EB] font-semibold' : 'text-[#6B7280] hover:text-[#111827]'
                 }`}
@@ -206,6 +256,7 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
                 <button
                   key={gal.id}
                   onClick={() => handleGalleryTabChange(gal.id)}
+                  aria-current={activeGalleryId === gal.id ? 'true' : undefined}
                   className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                     activeGalleryId === gal.id ? 'bg-white text-[#111827] shadow-xs border border-[#E5E7EB] font-semibold' : 'text-[#6B7280] hover:text-[#111827]'
                   }`}
@@ -218,7 +269,9 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <div className="relative w-full sm:w-48">
                 <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <label htmlFor="gallery-search" className="sr-only">Rechercher une photo par numéro ou tag</label>
                 <input
+                  id="gallery-search"
                   type="text"
                   placeholder="Recherche n°..."
                   value={searchQuery}
@@ -228,10 +281,11 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
               </div>
               <button
                 onClick={() => setOnlyFavorites(!onlyFavorites)}
+                aria-pressed={onlyFavorites}
+                aria-label={`Afficher uniquement mes favoris (${favorites.length})`}
                 className={`text-xs px-2.5 py-1.5 rounded-md border flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
                   onlyFavorites ? 'bg-red-50 text-red-600 border-red-200 font-semibold' : 'bg-white text-[#6B7280] border-[#E5E7EB] hover:bg-gray-50'
                 }`}
-                title="Afficher uniquement mes favoris"
               >
                 <Heart className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-red-600' : ''}`} />
                 <span className="hidden sm:inline">Favoris ({favorites.length})</span>
@@ -266,8 +320,17 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
               return (
                 <div
                   key={photo.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Agrandir la photo numéro ${photo.photoNumber}`}
                   onClick={() => setLightboxIndex(index)}
-                  className="group relative rounded-xl overflow-hidden bg-neutral-900 border border-[#E5E7EB] hover:border-gray-400 shadow-xs cursor-pointer transition-all duration-200"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setLightboxIndex(index);
+                    }
+                  }}
+                  className="group relative rounded-xl overflow-hidden bg-neutral-900 border border-[#E5E7EB] hover:border-gray-400 shadow-xs cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#F25C05] focus:ring-offset-2"
                 >
                   <div className="aspect-4/3 relative overflow-hidden bg-neutral-100">
                     {photo.displayUrl && (
@@ -278,24 +341,47 @@ export const ClientGalleryView: React.FC<ClientGalleryViewProps> = ({ slug }) =>
                     </div>
                     <button
                       onClick={(e) => toggleFavorite(photo.id, e)}
+                      aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      aria-pressed={isFav}
                       className={`absolute top-2 right-2 p-1.5 rounded-full transition-colors ${
                         isFav ? 'bg-white text-red-500 shadow' : 'bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-black/70'
                       }`}
                     >
                       <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-red-500' : ''}`} />
                     </button>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 text-white flex items-end justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-[10px] text-neutral-300 font-mono">{photo.priceCfa.toLocaleString('fr-FR')} FCFA (HD)</p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart({ photoId: photo.id, photoTitle: `Photo #${photo.photoNumber}`, thumbnailUrl: photo.thumbnailUrl, priceCfa: photo.priceCfa });
-                        }}
-                        className={`p-1.5 rounded-md transition-colors cursor-pointer ${inCart ? 'bg-emerald-600 text-white' : 'bg-[#F25C05] hover:bg-[#D94F04] text-white'}`}
-                      >
-                        {inCart ? <Check className="w-3.5 h-3.5" /> : <ShoppingBag className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
+                    {photo.hdAvailable ? (
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 text-white flex items-end justify-between">
+                        <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Déjà achetée
+                        </p>
+                        <button
+                          onClick={(e) => handleDownload(photo, e)}
+                          disabled={downloadingPhotoId === photo.id}
+                          aria-label="Télécharger en haute définition"
+                          className="p-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer disabled:opacity-60"
+                        >
+                          {downloadingPhotoId === photo.id ? (
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-3 text-white flex items-end justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] text-neutral-300 font-mono">{photo.priceCfa.toLocaleString('fr-FR')} FCFA (HD)</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToCart({ photoId: photo.id, photoTitle: `Photo #${photo.photoNumber}`, thumbnailUrl: photo.thumbnailUrl, priceCfa: photo.priceCfa });
+                          }}
+                          aria-label={inCart ? 'Déjà dans le panier' : 'Ajouter au panier'}
+                          className={`p-1.5 rounded-md transition-colors cursor-pointer ${inCart ? 'bg-emerald-600 text-white' : 'bg-[#F25C05] hover:bg-[#D94F04] text-white'}`}
+                        >
+                          {inCart ? <Check className="w-3.5 h-3.5" /> : <ShoppingBag className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

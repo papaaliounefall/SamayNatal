@@ -13,6 +13,17 @@ export function deletePhoto(id: string): Promise<void> {
   return api.delete(`/api/photos/${id}/`);
 }
 
+export interface UpdatePhotoPayload {
+  title?: string;
+  priceCfa?: number;
+  tags?: string[];
+  gallery?: string;
+}
+
+export function updatePhoto(id: string, data: UpdatePhotoPayload): Promise<Photo> {
+  return api.patch(`/api/photos/${id}/`, data);
+}
+
 export interface UploadResult {
   created: Photo[];
   errors: { filename: string; error: string }[];

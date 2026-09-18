@@ -4,7 +4,8 @@ from django.utils import timezone
 
 from apps.core.audit import record
 from apps.core.models import PlatformSettings
-from apps.core.tasks import send_email_task
+from apps.core.notifications import notify
+from apps.core.tasks import send_email_task, send_whatsapp_task
 from apps.events.models import Event
 from apps.photographers.models import LedgerEntry, Wallet
 from apps.photos.models import Photo, PhotoAccess
@@ -25,10 +26,95 @@ def _notify_order_confirmed(order: Order) -> None:
         ),
         recipient_list=[order.client_email],
     )
+    send_whatsapp_task.delay(
+        order.client_phone,
+        "order_confirmed",
+        {"client_name": order.client_name, "event_title": order.event.title, "gallery_url": gallery_url},
+    )
+    notify(
+        recipient=order.photographer.user,
+        title=f"Nouvelle vente — {order.total_amount_cfa} CFA",
+        body=f"{order.client_name} a acheté sur \"{order.event.title}\" ({order.order_number}).",
+        action_url="/dashboard/commandes",
+    )
 
 
 class CartValidationError(Exception):
     pass
+
+
+def list_clients_for_photographer(photographer) -> list[dict]:
+    """One row per distinct client email who has ordered from this
+    photographer, aggregated in a single query's worth of rows and
+    grouped in Python — a photographer's own client list is small enough
+    that this is simpler and just as correct as a window-function query,
+    and it avoids an N+1 lookup for the "latest name/phone" per client."""
+
+    orders = Order.objects.filter(photographer=photographer).order_by("created_at").only(
+        "client_email", "client_name", "client_phone", "payment_status", "total_amount_cfa", "created_at"
+    )
+
+    clients: dict[str, dict] = {}
+    for order in orders:
+        entry = clients.setdefault(
+            order.client_email,
+            {
+                "client_email": order.client_email,
+                "client_name": order.client_name,
+                "client_phone": order.client_phone,
+                "orders_count": 0,
+                "completed_orders_count": 0,
+                "total_spent_cfa": 0,
+                "first_purchase_at": order.created_at,
+                "last_purchase_at": order.created_at,
+            },
+        )
+        # Orders are iterated oldest-first, so the last write wins — always
+        # the most recent name/phone the client actually typed.
+        entry["client_name"] = order.client_name
+        entry["client_phone"] = order.client_phone or entry["client_phone"]
+        entry["orders_count"] += 1
+        entry["last_purchase_at"] = order.created_at
+        if order.payment_status == Order.PaymentStatus.COMPLETED:
+            entry["completed_orders_count"] += 1
+            entry["total_spent_cfa"] += order.total_amount_cfa
+
+    return sorted(clients.values(), key=lambda c: c["last_purchase_at"], reverse=True)
+
+
+def list_galleries_for_client(email: str) -> list[dict]:
+    """One row per event this client has a COMPLETED order on — the mirror
+    image of list_clients_for_photographer() above, grouped by event
+    instead of by client since a client cares which galleries they bought
+    into, not aggregate spend."""
+
+    orders = (
+        Order.objects.filter(client_email__iexact=email, payment_status=Order.PaymentStatus.COMPLETED)
+        .select_related("event", "event__photographer")
+        .prefetch_related("items")
+        .order_by("created_at")
+    )
+
+    galleries: dict[str, dict] = {}
+    for order in orders:
+        event = order.event
+        entry = galleries.setdefault(
+            str(event.id),
+            {
+                "event_slug": event.slug,
+                "event_title": event.title,
+                "photographer_business_name": event.photographer.business_name,
+                "cover_photo": event.cover_photo,
+                "purchased_photos_count": 0,
+                "total_spent_cfa": 0,
+                "last_order_at": order.created_at,
+            },
+        )
+        entry["purchased_photos_count"] += sum(1 for item in order.items.all() if item.photo_id is not None)
+        entry["total_spent_cfa"] += order.total_amount_cfa
+        entry["last_order_at"] = order.created_at
+
+    return sorted(galleries.values(), key=lambda g: g["last_order_at"], reverse=True)
 
 
 def _resolve_cart(event: Event, cart_items: list[dict]) -> list[dict]:

@@ -35,6 +35,25 @@ class PhotoSerializer(serializers.ModelSerializer):
         return obj.watermarked.url if obj.watermarked else None
 
 
+class PhotoUpdateSerializer(serializers.ModelSerializer):
+    """Restricted to what a photographer may safely edit after upload.
+
+    Deliberately excludes `event` — moving a photo to a different event
+    would desync both events' `photos_count` and could cross photographer
+    ownership boundaries. Moving between galleries of the *same* event is
+    fine and is validated below.
+    """
+
+    class Meta:
+        model = Photo
+        fields = ["title", "price_cfa", "tags", "gallery"]
+
+    def validate_gallery(self, gallery):
+        if gallery.event_id != self.instance.event_id:
+            raise serializers.ValidationError("La galerie doit appartenir au même événement que la photo.")
+        return gallery
+
+
 class PublicPhotoSerializer(serializers.ModelSerializer):
     """Client-facing: never the original, only display-safe derivatives.
 

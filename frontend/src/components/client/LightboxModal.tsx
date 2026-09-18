@@ -43,7 +43,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   const inCart = isInCart(currentPhoto.id);
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#121212]/95 backdrop-blur-md flex flex-col justify-between select-none">
+    <div role="dialog" aria-modal="true" aria-label="Visionneuse de photo" className="fixed inset-0 z-50 bg-[#121212]/95 backdrop-blur-md flex flex-col justify-between select-none">
       <div className="px-6 py-4 flex items-center justify-between border-b border-neutral-800 text-white z-20">
         <span className="text-xs font-mono font-bold bg-neutral-800 px-2.5 py-1 rounded text-[#F25C05] border border-neutral-700">
           #{currentPhoto.photoNumber}
@@ -67,6 +67,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
         {currentIndex > 0 && (
           <button
             onClick={() => onNavigate(currentIndex - 1)}
+            aria-label="Photo précédente"
             className="absolute left-4 z-20 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/10 transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -85,6 +86,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
         {currentIndex < photos.length - 1 && (
           <button
             onClick={() => onNavigate(currentIndex + 1)}
+            aria-label="Photo suivante"
             className="absolute right-4 z-20 p-2.5 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/10 transition-colors cursor-pointer"
           >
             <ChevronRight className="w-6 h-6" />

@@ -6,9 +6,42 @@ interface LoginResponse {
   user: AuthUser;
 }
 
+// A plain (non-HttpOnly) marker so the app can skip the silent-refresh
+// call entirely for the vast majority of visits (anonymous gallery
+// browsing) instead of always firing a request that's guaranteed to 401
+// when there was never a session to restore. Holds no session data itself
+// — the real refresh token stays HttpOnly, this is only a hint.
+const SESSION_HINT_KEY = 'sn_had_session';
+
+function markSessionHint(): void {
+  try {
+    localStorage.setItem(SESSION_HINT_KEY, '1');
+  } catch {
+    // Private browsing / blocked storage — worst case we fall back to
+    // always attempting silentRefresh, same as before this optimization.
+  }
+}
+
+function clearSessionHint(): void {
+  try {
+    localStorage.removeItem(SESSION_HINT_KEY);
+  } catch {
+    // Ignore — see markSessionHint().
+  }
+}
+
+export function hadSessionHint(): boolean {
+  try {
+    return localStorage.getItem(SESSION_HINT_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+
 export async function login(email: string, password: string): Promise<AuthUser> {
   const res = await api.post<LoginResponse>('/api/auth/login/', { email, password });
   setAccessToken(res.access);
+  markSessionHint();
   return res.user;
 }
 
@@ -21,6 +54,7 @@ export async function registerClient(data: {
 }): Promise<AuthUser> {
   const res = await api.post<LoginResponse>('/api/auth/register/', data);
   setAccessToken(res.access);
+  markSessionHint();
   return res.user;
 }
 
@@ -29,6 +63,7 @@ export async function logout(): Promise<void> {
     await api.post('/api/auth/logout/');
   } finally {
     setAccessToken(null);
+    clearSessionHint();
   }
 }
 
@@ -46,8 +81,11 @@ export async function silentRefresh(): Promise<AuthUser | null> {
   try {
     const res = await api.post<RefreshResponse>('/api/auth/refresh/');
     setAccessToken(res.access);
-    return await fetchMe();
+    const user = await fetchMe();
+    markSessionHint();
+    return user;
   } catch {
+    clearSessionHint();
     return null;
   }
 }

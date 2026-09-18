@@ -68,7 +68,14 @@ class Event(BaseModel, PinProtectedMixin):
     date = models.DateField()
     location = models.CharField(max_length=255, blank=True)
     category = models.CharField(max_length=40, choices=EVENT_CATEGORIES)
-    cover_photo_url = models.URLField(blank=True)
+    # A photo, not a URL: photo derivatives are only ever served through
+    # signed, expiring storage URLs (see apps.photos.storage.signed_url),
+    # ­so persisting one directly here would go stale and — for a real
+    # signed MinIO/S3 URL — overflow a plain URLField's length anyway.
+    # The servable URL is computed fresh from this FK at serialization time.
+    cover_photo = models.ForeignKey(
+        "photos.Photo", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.BROUILLON)
     privacy = models.CharField(max_length=20, choices=Privacy.choices, default=Privacy.PUBLIC)
 
@@ -86,7 +93,10 @@ class Event(BaseModel, PinProtectedMixin):
         max_length=20,
         choices=[("center", "Centre"), ("bottom-right", "Bas droite"), ("bottom-left", "Bas gauche"),
                  ("top-right", "Haut droite"), ("tile", "Mosaïque")],
-        default="center",
+        # "tile" resists cropping regardless of the photo's subject/framing —
+        # a single-position mark (even centered) can still be cut away on
+        # some aspect ratios. Photographers can still pick any position.
+        default="tile",
     )
     watermark_opacity = models.FloatField(default=0.45)
 

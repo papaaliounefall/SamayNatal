@@ -27,6 +27,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Skip the network round-trip (and its guaranteed 401) entirely when
+    // nothing suggests a session ever existed on this browser — the
+    // common case for anonymous gallery visitors.
+    if (!authService.hadSessionHint()) {
+      setIsLoading(false);
+      return;
+    }
     authService
       .silentRefresh()
       .then(setUser)

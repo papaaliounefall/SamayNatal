@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { PublicEvent, PaymentMethod, Order } from '../../types/api';
 import { createOrder, devConfirmPayment } from '../../services/orders';
 import { requestHdDownload } from '../../services/photos';
 import { ApiError } from '../../lib/api';
-import { CreditCard, Smartphone, CheckCircle2, Download, ShieldCheck, FlaskConical } from 'lucide-react';
+import { navigate } from '../../lib/router';
+import { CreditCard, Smartphone, CheckCircle2, Download, ShieldCheck, FlaskConical, UserPlus } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ const IS_SANDBOX = Boolean(import.meta.env.DEV);
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, event }) => {
   const { cart, removeFromCart, clearCart, totalCfa } = useCart();
+  const { user, registerClient } = useAuth();
 
   const [step, setStep] = useState<'review' | 'payment' | 'pending' | 'success'>('review');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('WAVE');
@@ -27,6 +30,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
   const [order, setOrder] = useState<Order | null>(null);
   const [providerReference, setProviderReference] = useState('');
   const [downloadUrls, setDownloadUrls] = useState<{ label: string; url: string }[]>([]);
+
+  const [accountPassword, setAccountPassword] = useState('');
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [accountError, setAccountError] = useState('');
+  const [accountCreated, setAccountCreated] = useState(false);
 
   const paymentProviders: { id: PaymentMethod; label: string; sub: string; iconColor: string }[] = [
     { id: 'WAVE', label: 'Wave Mobile Money', sub: 'Sénégal & Côte d\'Ivoire', iconColor: 'text-[#1E90FF]' },
@@ -81,6 +89,31 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
     }
   };
 
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setIsCreatingAccount(true);
+    setAccountError('');
+    try {
+      await registerClient({
+        email: order.clientEmail,
+        password: accountPassword,
+        firstName: order.clientName,
+        lastName: '',
+      });
+      setAccountCreated(true);
+    } catch (err) {
+      if (err instanceof ApiError && err.data && typeof err.data === 'object') {
+        const messages = Object.values(err.data as Record<string, unknown>).flat().map(String);
+        setAccountError(messages[0] || 'Impossible de créer le compte.');
+      } else {
+        setAccountError('Impossible de créer le compte. Veuillez réessayer.');
+      }
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   const handleClose = () => {
     setStep('review');
     setError('');
@@ -120,7 +153,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-[#111827]">{item.priceCfa.toLocaleString('fr-FR')} F</span>
-                    <button onClick={() => removeFromCart(item.photoId)} className="text-xs text-red-500 hover:text-red-700 cursor-pointer font-bold px-1">✕</button>
+                    <button
+                      onClick={() => removeFromCart(item.photoId)}
+                      aria-label={`Retirer ${item.photoTitle} du panier`}
+                      className="text-xs text-red-500 hover:text-red-700 cursor-pointer font-bold px-1"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
               ))}
@@ -128,19 +167,43 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
           </div>
 
           <div className="space-y-3 pt-2 border-t border-[#E5E7EB]">
-            <label className="block text-xs font-semibold text-[#111827]">Coordonnées de réception des liens de téléchargement</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <label id="checkout-contact-group" className="block text-xs font-semibold text-[#111827]">Coordonnées de réception des liens de téléchargement</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="group" aria-labelledby="checkout-contact-group">
               <div>
-                <span className="text-[10px] text-[#6B7280]">Nom complet *</span>
-                <input type="text" required value={clientInfo.name} onChange={(e) => setClientInfo({ ...clientInfo, name: e.target.value })} className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]" />
+                <label htmlFor="checkout-name" className="text-[10px] text-[#6B7280]">Nom complet *</label>
+                <input
+                  id="checkout-name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={clientInfo.name}
+                  onChange={(e) => setClientInfo({ ...clientInfo, name: e.target.value })}
+                  className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]"
+                />
               </div>
               <div>
-                <span className="text-[10px] text-[#6B7280]">Email de réception *</span>
-                <input type="email" required value={clientInfo.email} onChange={(e) => setClientInfo({ ...clientInfo, email: e.target.value })} className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]" />
+                <label htmlFor="checkout-email" className="text-[10px] text-[#6B7280]">Email de réception *</label>
+                <input
+                  id="checkout-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={clientInfo.email}
+                  onChange={(e) => setClientInfo({ ...clientInfo, email: e.target.value })}
+                  className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]"
+                />
               </div>
               <div>
-                <span className="text-[10px] text-[#6B7280]">Téléphone (WhatsApp) *</span>
-                <input type="tel" required value={clientInfo.phone} onChange={(e) => setClientInfo({ ...clientInfo, phone: e.target.value })} className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]" />
+                <label htmlFor="checkout-phone" className="text-[10px] text-[#6B7280]">Téléphone (WhatsApp) *</label>
+                <input
+                  id="checkout-phone"
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  value={clientInfo.phone}
+                  onChange={(e) => setClientInfo({ ...clientInfo, phone: e.target.value })}
+                  className="w-full text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded mt-0.5 focus:outline-none focus:border-[#F25C05]"
+                />
               </div>
             </div>
           </div>
@@ -173,13 +236,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
       {step === 'payment' && (
         <div className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-[#111827] mb-2">Sélectionnez votre moyen de paiement</label>
-            <div className="space-y-2">
+            <label id="checkout-payment-group" className="block text-xs font-semibold text-[#111827] mb-2">Sélectionnez votre moyen de paiement</label>
+            <div className="space-y-2" role="radiogroup" aria-labelledby="checkout-payment-group">
               {paymentProviders.map((provider) => (
                 <div
                   key={provider.id}
+                  role="radio"
+                  aria-checked={selectedMethod === provider.id}
+                  tabIndex={0}
                   onClick={() => setSelectedMethod(provider.id)}
-                  className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedMethod(provider.id);
+                    }
+                  }}
+                  className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all focus:outline-none focus:ring-2 focus:ring-[#F25C05] focus:ring-offset-2 ${
                     selectedMethod === provider.id ? 'border-[#F25C05] bg-[#FFF1EB]/50 ring-1 ring-[#F25C05]' : 'border-[#E5E7EB] hover:bg-gray-50'
                   }`}
                 >
@@ -202,7 +274,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
             <ShieldCheck className="w-4 h-4" /> Le paiement n'est confirmé que par le fournisseur, jamais par ce navigateur.
           </div>
 
-          {error && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+          {error && <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
 
           <div className="flex justify-between items-center pt-3 border-t border-[#E5E7EB]">
             <Button variant="secondary" size="sm" onClick={() => setStep('review')} disabled={isProcessing}>Retour au panier</Button>
@@ -240,7 +312,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
             </div>
           )}
 
-          {error && <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
+          {error && <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>}
         </div>
       )}
 
@@ -275,6 +347,49 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, e
               ))}
             </div>
           </div>
+
+          {!user && !accountCreated && (
+            <div className="bg-[#FFF1EB] border border-orange-200 rounded-xl p-4 text-left space-y-2">
+              <p className="text-xs font-semibold text-[#111827] flex items-center gap-1.5">
+                <UserPlus className="w-4 h-4 text-[#F25C05]" /> Créer un compte gratuit
+              </p>
+              <p className="text-[11px] text-[#6B7280]">
+                Retrouvez toutes vos galeries achetées au même endroit, sans jamais perdre ce lien.
+              </p>
+              <form onSubmit={handleCreateAccount} className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="password"
+                  required
+                  minLength={10}
+                  placeholder="Mot de passe (10 caractères min.)"
+                  value={accountPassword}
+                  onChange={(e) => setAccountPassword(e.target.value)}
+                  className="flex-1 text-xs px-2.5 py-1.5 border border-[#E5E7EB] rounded focus:outline-none focus:border-[#F25C05]"
+                />
+                <Button type="submit" variant="primary" size="sm" isLoading={isCreatingAccount}>
+                  Créer mon compte
+                </Button>
+              </form>
+              {accountError && <p role="alert" className="text-[11px] text-red-600 font-medium">{accountError}</p>}
+              <p className="text-[10px] text-[#6B7280]">Compte associé à {order.clientEmail}</p>
+            </div>
+          )}
+
+          {accountCreated && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center space-y-2">
+              <p className="text-xs font-semibold text-emerald-800">Compte créé avec succès !</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  handleClose();
+                  navigate('/mes-galeries');
+                }}
+              >
+                Voir mes galeries
+              </Button>
+            </div>
+          )}
 
           <div className="pt-4 border-t border-[#E5E7EB]">
             <Button variant="primary" size="md" onClick={handleClose} className="w-full">Fermer et retourner à la galerie</Button>

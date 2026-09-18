@@ -21,6 +21,11 @@ class IsApprovedPhotographer(BasePermission):
         return bool(profile and profile.status == "APPROUVÉ")
 
 
+class IsClient(BasePermission):
+    def has_permission(self, request, view) -> bool:
+        return bool(request.user and request.user.is_authenticated and request.user.role == "CLIENT")
+
+
 class IsOwnerPhotographer(BasePermission):
     """Object-level check: the resource must belong to the requesting photographer.
 

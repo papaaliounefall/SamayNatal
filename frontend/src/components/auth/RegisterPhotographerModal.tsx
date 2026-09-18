@@ -154,20 +154,24 @@ export const RegisterPhotographerPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6 mt-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Prénom *</label>
+                <label htmlFor="reg-first-name" className="block text-xs font-semibold text-[#111827] mb-1">Prénom *</label>
                 <input
+                  id="reg-first-name"
                   type="text"
                   required
+                  autoComplete="given-name"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   className="w-full text-xs px-3 py-2 bg-white border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Nom de famille *</label>
+                <label htmlFor="reg-last-name" className="block text-xs font-semibold text-[#111827] mb-1">Nom de famille *</label>
                 <input
+                  id="reg-last-name"
                   type="text"
                   required
+                  autoComplete="family-name"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   className="w-full text-xs px-3 py-2 bg-white border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
@@ -177,10 +181,11 @@ export const RegisterPhotographerPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">
+                <label htmlFor="reg-business-name" className="block text-xs font-semibold text-[#111827] mb-1">
                   Nom professionnel / Nom de Studio *
                 </label>
                 <input
+                  id="reg-business-name"
                   type="text"
                   required
                   placeholder="ex: PAF Photography"
@@ -190,9 +195,11 @@ export const RegisterPhotographerPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Téléphone (WhatsApp pro)</label>
+                <label htmlFor="reg-phone" className="block text-xs font-semibold text-[#111827] mb-1">Téléphone (WhatsApp pro)</label>
                 <input
+                  id="reg-phone"
                   type="tel"
+                  autoComplete="tel"
                   placeholder="+221 77 000 00 00"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -203,10 +210,12 @@ export const RegisterPhotographerPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Adresse Email *</label>
+                <label htmlFor="reg-email" className="block text-xs font-semibold text-[#111827] mb-1">Adresse Email *</label>
                 <input
+                  id="reg-email"
                   type="email"
                   required
+                  autoComplete="email"
                   placeholder="contact@studio.sn"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -214,11 +223,13 @@ export const RegisterPhotographerPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Mot de passe *</label>
+                <label htmlFor="reg-password" className="block text-xs font-semibold text-[#111827] mb-1">Mot de passe *</label>
                 <input
+                  id="reg-password"
                   type="password"
                   required
                   minLength={10}
+                  autoComplete="new-password"
                   placeholder="10 caractères minimum"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -229,20 +240,24 @@ export const RegisterPhotographerPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Ville *</label>
+                <label htmlFor="reg-city" className="block text-xs font-semibold text-[#111827] mb-1">Ville *</label>
                 <input
+                  id="reg-city"
                   type="text"
                   required
+                  autoComplete="address-level2"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="w-full text-xs px-3 py-2 bg-white border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#111827] mb-1">Pays *</label>
+                <label htmlFor="reg-country" className="block text-xs font-semibold text-[#111827] mb-1">Pays *</label>
                 <input
+                  id="reg-country"
                   type="text"
                   required
+                  autoComplete="country-name"
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   className="w-full text-xs px-3 py-2 bg-white border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none"
@@ -251,10 +266,11 @@ export const RegisterPhotographerPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#111827] mb-1">
+              <label htmlFor="reg-portfolio" className="block text-xs font-semibold text-[#111827] mb-1">
                 Lien Portfolio ou Réseau Professionnel (Instagram / Site web)
               </label>
               <input
+                id="reg-portfolio"
                 type="url"
                 placeholder="https://instagram.com/mon_studio_photo"
                 value={formData.portfolioUrl}
@@ -267,8 +283,9 @@ export const RegisterPhotographerPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#111827] mb-1">Présentation / Expérience</label>
+              <label htmlFor="reg-bio" className="block text-xs font-semibold text-[#111827] mb-1">Présentation / Expérience</label>
               <textarea
+                id="reg-bio"
                 rows={3}
                 placeholder="Décrivez brièvement vos prestations et le matériel utilisé (boîtiers, objectifs)..."
                 value={formData.bio}
@@ -320,7 +337,7 @@ export const RegisterPhotographerPage: React.FC = () => {
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
                 {error}
               </p>
             )}

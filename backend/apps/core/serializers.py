@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import AuditLog, PlatformSettings
+from .models import AuditLog, Notification, PlatformSettings
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
@@ -23,3 +23,10 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
         if not 0 <= value <= 0.5:
             raise serializers.ValidationError("Le taux de commission doit être compris entre 0% et 50%.")
         return value
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ["id", "title", "body", "action_url", "read_at", "created_at"]
+        read_only_fields = fields

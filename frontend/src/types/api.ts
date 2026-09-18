@@ -61,6 +61,26 @@ export interface Wallet {
   entries: LedgerEntry[];
 }
 
+export type PayoutMethod = 'WAVE' | 'ORANGE_MONEY' | 'FREE_MONEY';
+export type PayoutStatus = 'EN_ATTENTE' | 'PAYE' | 'REJETE';
+
+export interface PayoutRequest {
+  id: string;
+  amountCfa: number;
+  method: PayoutMethod;
+  phoneNumber: string;
+  status: PayoutStatus;
+  adminNote: string;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminPayoutRequest extends PayoutRequest {
+  photographer: string;
+  photographerBusinessName: string;
+  processedByLabel: string;
+}
+
 export type GalleryPrivacy = 'PUBLIC' | 'CODE_PIN' | 'PRIVE';
 export type EventStatus = 'BROUILLON' | 'ACTIF' | 'ARCHIVÉ' | 'SUSPENDU';
 export type WatermarkPosition = 'center' | 'bottom-right' | 'bottom-left' | 'top-right' | 'tile';
@@ -91,7 +111,8 @@ export interface EventDetail {
   date: string;
   location: string;
   category: EventCategory;
-  coverPhotoUrl: string;
+  coverPhotoUrl: string | null;
+  coverPhotoId: string | null;
   status: EventStatus;
   privacy: GalleryPrivacy;
   hasPin: boolean;
@@ -126,7 +147,7 @@ export interface PublicEvent {
   date: string;
   location: string;
   category: EventCategory;
-  coverPhotoUrl: string;
+  coverPhotoUrl: string | null;
   photographerName: string;
   photosCount: number;
   privacy: GalleryPrivacy;
@@ -186,6 +207,7 @@ export interface Order {
   id: string;
   orderNumber: string;
   event: string;
+  eventTitle: string;
   clientName: string;
   clientEmail: string;
   clientPhone: string;
@@ -223,6 +245,108 @@ export interface AuditLogEntry {
 export interface PlatformSettingsData {
   commissionRate: number;
   updatedAt: string;
+}
+
+export type SystemHealthStatus = 'up' | 'down';
+
+export interface SystemHealthCheck {
+  status: SystemHealthStatus;
+  latencyMs: number;
+  error?: string;
+}
+
+export interface SystemHealth {
+  checks: {
+    database: SystemHealthCheck;
+    cache: SystemHealthCheck;
+    storage: SystemHealthCheck;
+    celery: SystemHealthCheck;
+  };
+  healthy: boolean;
+}
+
+export interface AdminStats {
+  photographersTotal: number;
+  photographersApproved: number;
+  photographersPending: number;
+  eventsTotal: number;
+  eventsActive: number;
+  ordersTotal: number;
+  ordersCompleted: number;
+  ordersPending: number;
+  totalRevenueCfa: number;
+  totalCommissionCfa: number;
+  totalPhotographerEarningsCfa: number;
+  revenueLast30DaysCfa: number;
+  ordersLast30Days: number;
+}
+
+export interface AdminOrder extends Order {
+  photographer: string;
+  photographerBusinessName: string;
+}
+
+export interface ClientSummary {
+  clientEmail: string;
+  clientName: string;
+  clientPhone: string;
+  ordersCount: number;
+  completedOrdersCount: number;
+  totalSpentCfa: number;
+  firstPurchaseAt: string;
+  lastPurchaseAt: string;
+}
+
+export interface ClientGallerySummary {
+  eventSlug: string;
+  eventTitle: string;
+  photographerBusinessName: string;
+  coverPhotoUrl: string | null;
+  purchasedPhotosCount: number;
+  totalSpentCfa: number;
+  lastOrderAt: string;
+}
+
+export type ModerationTargetType = 'PHOTO' | 'EVENT' | 'PHOTOGRAPHER';
+export type ReportReason = 'CONTENU_INAPPROPRIE' | 'DROITS_AUTEUR' | 'SPAM' | 'AUTRE';
+export type ReportStatus = 'OUVERT' | 'EN_COURS' | 'RESOLU' | 'REJETE';
+export type ModerationActionType =
+  | 'SUPPRESSION_PHOTO'
+  | 'SUSPENSION_EVENEMENT'
+  | 'SUSPENSION_PHOTOGRAPHE'
+  | 'AVERTISSEMENT'
+  | 'REJET_SIGNALEMENT';
+
+export interface Report {
+  id: string;
+  targetType: ModerationTargetType;
+  targetId: string;
+  targetLabel: string;
+  reporterEmail: string;
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  createdAt: string;
+}
+
+export interface ModerationAction {
+  id: string;
+  report: string | null;
+  adminLabel: string;
+  actionType: ModerationActionType;
+  targetType: ModerationTargetType;
+  targetId: string;
+  notes: string;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  actionUrl: string;
+  readAt: string | null;
+  createdAt: string;
 }
 
 export interface Paginated<T> {

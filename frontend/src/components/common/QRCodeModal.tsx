@@ -113,9 +113,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, event
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[#111827] mb-1.5">Lien d'accès client direct</label>
+          <label htmlFor="gallery-link" className="block text-xs font-medium text-[#111827] mb-1.5">Lien d'accès client direct</label>
           <div className="flex gap-2">
             <input
+              id="gallery-link"
               type="text"
               readOnly
               value={galleryUrl}

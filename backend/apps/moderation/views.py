@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.core.notifications import notify_admins
 from apps.core.permissions import IsAdmin
 
 from .models import ModerationAction, Report
@@ -22,6 +23,11 @@ class CreateReportView(APIView):
         serializer = CreateReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         report = serializer.save()
+        notify_admins(
+            title="Nouveau signalement",
+            body=f"{report.get_reason_display()} — {report.target_label or report.target_type}",
+            action_url="/admin",
+        )
         return Response(ReportSerializer(report).data, status=201)
 
 

@@ -161,6 +161,69 @@ class PhotographerPhotoIsolationTests(TempMediaTestCase):
         self.assertTrue(Photo.objects.filter(pk=self.photo_a.pk).exists())
 
 
+class PhotoUpdateTests(TempMediaTestCase):
+    """Editing a photo after upload — title/price/tags, and moving it
+    between galleries of the same event (with photo_count kept in sync)."""
+
+    def setUp(self):
+        self.user, self.profile = _make_approved_photographer()
+        self.event, self.gallery = _make_event_and_gallery(self.profile)
+        self.other_gallery = Gallery.objects.create(event=self.event, name="Portraits")
+        self.photo = _make_photo(self.event, self.gallery)
+        Gallery.objects.filter(pk=self.gallery.pk).update(photo_count=1)
+
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_owner_can_update_title_price_and_tags(self):
+        response = self.client.patch(
+            f"/api/photos/{self.photo.id}/",
+            {"title": "Portrait de mariée", "price_cfa": 3500, "tags": ["portrait", "exterieur"]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.photo.refresh_from_db()
+        self.assertEqual(self.photo.title, "Portrait de mariée")
+        self.assertEqual(self.photo.price_cfa, 3500)
+        self.assertEqual(self.photo.tags, ["portrait", "exterieur"])
+
+    def test_moving_to_another_gallery_of_the_same_event_updates_counters(self):
+        response = self.client.patch(
+            f"/api/photos/{self.photo.id}/", {"gallery": str(self.other_gallery.id)}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.photo.refresh_from_db()
+        self.gallery.refresh_from_db()
+        self.other_gallery.refresh_from_db()
+        self.assertEqual(self.photo.gallery_id, self.other_gallery.id)
+        self.assertEqual(self.gallery.photo_count, 0)
+        self.assertEqual(self.other_gallery.photo_count, 1)
+
+    def test_cannot_move_photo_to_a_gallery_of_a_different_event(self):
+        other_event, other_event_gallery = _make_event_and_gallery(self.profile)
+        response = self.client.patch(
+            f"/api/photos/{self.photo.id}/", {"gallery": str(other_event_gallery.id)}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.photo.refresh_from_db()
+        self.assertEqual(self.photo.gallery_id, self.gallery.id)
+
+    def test_photographer_cannot_update_another_photographers_photo(self):
+        other_user = User.objects.create_user(email="c@test.com", password="TestPass123!", role=User.Role.PHOTOGRAPHE)
+        other_profile = PhotographerProfile.objects.create(
+            user=other_user, business_name="Studio C", city="Dakar", country="Sénégal",
+            status=PhotographerProfile.Status.APPROUVE,
+        )
+        Wallet.objects.create(photographer=other_profile)
+        other_client = APIClient()
+        other_client.force_authenticate(other_user)
+
+        response = other_client.patch(f"/api/photos/{self.photo.id}/", {"title": "Hijack"}, format="json")
+        self.assertEqual(response.status_code, 404)
+        self.photo.refresh_from_db()
+        self.assertNotEqual(self.photo.title, "Hijack")
+
+
 class StorageQuotaTests(TempMediaTestCase):
     """Real photos are almost always several MB, but the quota is tracked
     in whole MB — so these use JPEG-hostile random noise to force a

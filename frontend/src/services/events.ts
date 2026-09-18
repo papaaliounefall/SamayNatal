@@ -18,7 +18,6 @@ export interface CreateEventPayload {
   category: EventCategory;
   privacy: GalleryPrivacy;
   accessPin?: string;
-  coverPhotoUrl?: string;
   defaultPricePerPhotoCfa: number;
   packPriceCfa?: number;
   fullGalleryPriceCfa?: number;
@@ -46,6 +45,10 @@ export function fetchMyEvent(id: string): Promise<EventDetail> {
 
 export function updateEvent(id: string, data: UpdateEventPayload): Promise<EventDetail> {
   return api.patch(`/api/events/${id}/`, data);
+}
+
+export function setCoverPhoto(eventId: string, photoId: string): Promise<EventDetail> {
+  return api.post(`/api/events/${eventId}/set-cover/`, { photoId });
 }
 
 export function createGallery(eventId: string, name: string, privacy: GalleryPrivacy = 'PUBLIC'): Promise<Gallery> {

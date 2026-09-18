@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import { Order, OrderItemType, Paginated, PaymentMethod } from '../types/api';
+import { ClientGallerySummary, ClientSummary, Order, OrderItemType, Paginated, PaymentMethod } from '../types/api';
 
 export interface CartLine {
   itemType: OrderItemType;
@@ -34,4 +34,12 @@ export function devConfirmPayment(providerReference: string, succeeded = true): 
 
 export function fetchMyOrders(): Promise<Paginated<Order>> {
   return api.get('/api/orders/?page_size=200');
+}
+
+export function fetchMyClients(): Promise<ClientSummary[]> {
+  return api.get('/api/clients/');
+}
+
+export function fetchMyGalleries(): Promise<ClientGallerySummary[]> {
+  return api.get('/api/client/galleries/');
 }

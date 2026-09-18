@@ -17,7 +17,16 @@ def can_view_event(event: Event, request) -> bool:
     if event.privacy == "PUBLIC":
         return True
     if event.privacy == "CODE_PIN":
-        return has_unlocked_session(request, event)
+        if has_unlocked_session(request, event):
+            return True
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated:
+            from apps.orders.models import Order
+
+            return Order.objects.filter(
+                event=event, client_email__iexact=user.email, payment_status=Order.PaymentStatus.COMPLETED
+            ).exists()
+        return False
     if event.privacy == "PRIVE":
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:

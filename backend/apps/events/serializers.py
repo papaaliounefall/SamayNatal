@@ -32,6 +32,14 @@ class GallerySerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+def _photo_display_url(photo) -> str | None:
+    if not photo:
+        return None
+    if photo.watermarked:
+        return photo.watermarked.url
+    return photo.preview.url if photo.preview else None
+
+
 class EventSerializer(serializers.ModelSerializer):
     """Full serializer for the owning photographer — includes counters and
     watermark settings, but still never exposes the PIN itself."""
@@ -40,12 +48,14 @@ class EventSerializer(serializers.ModelSerializer):
     access_pin = serializers.CharField(write_only=True, required=False, allow_blank=True)
     has_pin = serializers.SerializerMethodField()
     public_url = serializers.SerializerMethodField()
+    cover_photo_url = serializers.SerializerMethodField()
+    cover_photo_id = serializers.PrimaryKeyRelatedField(source="cover_photo", read_only=True)
 
     class Meta:
         model = Event
         fields = [
             "id", "slug", "title", "description", "date", "location", "category",
-            "cover_photo_url", "status", "privacy", "access_pin", "has_pin",
+            "cover_photo_url", "cover_photo_id", "status", "privacy", "access_pin", "has_pin",
             "views_count", "downloads_count", "photos_count",
             "default_price_per_photo_cfa", "pack_price_cfa", "full_gallery_price_cfa",
             "watermark_enabled", "watermark_text", "watermark_position", "watermark_opacity",
@@ -59,6 +69,9 @@ class EventSerializer(serializers.ModelSerializer):
     def get_public_url(self, obj: Event) -> str:
         from django.conf import settings
         return f"{settings.FRONTEND_BASE_URL}/g/{obj.slug}"
+
+    def get_cover_photo_url(self, obj: Event) -> str | None:
+        return _photo_display_url(obj.cover_photo)
 
     def create(self, validated_data):
         pin = validated_data.pop("access_pin", "")
@@ -91,6 +104,7 @@ class PublicEventSerializer(serializers.ModelSerializer):
     photographer_name = serializers.CharField(source="photographer.business_name", read_only=True)
     galleries = PublicGallerySerializer(many=True, read_only=True)
     requires_pin = serializers.SerializerMethodField()
+    cover_photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -103,6 +117,9 @@ class PublicEventSerializer(serializers.ModelSerializer):
 
     def get_requires_pin(self, obj: Event) -> bool:
         return obj.privacy == "CODE_PIN"
+
+    def get_cover_photo_url(self, obj: Event) -> str | None:
+        return _photo_display_url(obj.cover_photo)
 
 
 class UnlockEventSerializer(serializers.Serializer):

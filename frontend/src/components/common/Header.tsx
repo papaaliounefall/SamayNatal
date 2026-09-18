@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { Camera, Shield, ShoppingBag, LogOut, ChevronDown } from 'lucide-react';
+import { Camera, Shield, ShoppingBag, LogOut, ChevronDown, Menu, X } from 'lucide-react';
 import { Button } from './Button';
+import { NotificationBell } from './NotificationBell';
 import { navigate, useLocation } from '../../lib/router';
+
+const LANDING_NAV_LINKS = [
+  { href: '#fonctionnement', label: 'Fonctionnement' },
+  { href: '#photographes', label: 'Pour les Photographes' },
+  { href: '#clients', label: 'Pour les Clients' },
+  { href: '#categories', label: 'Catégories' },
+  { href: '#tarifs', label: 'Tarifs' },
+];
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { cart } = useCart();
   const path = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isLanding = path === '/';
   const isClientView = /^\/g\//.test(path);
@@ -50,12 +60,22 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-3 sm:gap-4">
           {isLanding && (
             <div className="hidden md:flex items-center gap-6 text-sm text-[#6B7280]">
-              <a href="#fonctionnement" className="hover:text-[#111827] transition-colors">Fonctionnement</a>
-              <a href="#photographes" className="hover:text-[#111827] transition-colors">Pour les Photographes</a>
-              <a href="#clients" className="hover:text-[#111827] transition-colors">Pour les Clients</a>
-              <a href="#categories" className="hover:text-[#111827] transition-colors">Catégories</a>
-              <a href="#tarifs" className="hover:text-[#111827] transition-colors">Tarifs</a>
+              {LANDING_NAV_LINKS.map((link) => (
+                <a key={link.href} href={link.href} className="hover:text-[#111827] transition-colors">
+                  {link.label}
+                </a>
+              ))}
             </div>
+          )}
+
+          {isLanding && (
+            <button
+              onClick={() => setMobileNavOpen((v) => !v)}
+              className="md:hidden p-2 -mr-1 rounded-lg text-[#6B7280] hover:bg-[#F8F9FA] transition-colors cursor-pointer"
+              aria-label={mobileNavOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            >
+              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           )}
 
           <div className="flex items-center gap-2.5">
@@ -85,9 +105,11 @@ export const Header: React.FC = () => {
 
             {!user && isLanding && (
               <>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/inscription-photographe')}>
-                  Devenir photographe
-                </Button>
+                <div className="hidden md:block">
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/inscription-photographe')}>
+                    Devenir photographe
+                  </Button>
+                </div>
                 <Button variant="primary" size="sm" onClick={() => navigate('/connexion')}>
                   Connexion
                 </Button>
@@ -99,6 +121,8 @@ export const Header: React.FC = () => {
                 Connexion
               </Button>
             )}
+
+            {user && (user.role === 'PHOTOGRAPHE' || user.role === 'ADMIN') && <NotificationBell />}
 
             {user && (
               <div className="relative">
@@ -127,6 +151,34 @@ export const Header: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isLanding && mobileNavOpen && (
+        <div className="md:hidden border-t border-[#E5E7EB] bg-white px-4 py-3 space-y-0.5">
+          {LANDING_NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileNavOpen(false)}
+              className="block px-2 py-2.5 rounded-lg text-sm text-[#111827] hover:bg-[#F8F9FA] transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+          <div className="pt-2 mt-2 border-t border-[#E5E7EB]">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                setMobileNavOpen(false);
+                navigate('/inscription-photographe');
+              }}
+            >
+              Devenir photographe
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

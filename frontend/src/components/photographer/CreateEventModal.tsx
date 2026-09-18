@@ -82,8 +82,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-[#111827] mb-1">Titre de l'événement *</label>
+          <label htmlFor="event-title" className="block text-xs font-semibold text-[#111827] mb-1">Titre de l'événement *</label>
           <input
+            id="event-title"
             type="text"
             required
             placeholder="ex: Mariage Fatou & Abdou, Finale Coupe du Sénégal..."
@@ -95,8 +96,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-[#111827] mb-1">Catégorie *</label>
+            <label htmlFor="event-category" className="block text-xs font-semibold text-[#111827] mb-1">Catégorie *</label>
             <select
+              id="event-category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value as EventCategory })}
               className="w-full text-xs px-3 py-2 border border-[#E5E7EB] rounded-md focus:border-[#F25C05] focus:outline-none bg-white"
@@ -107,8 +109,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#111827] mb-1">Date de la prise de vue *</label>
+            <label htmlFor="event-date" className="block text-xs font-semibold text-[#111827] mb-1">Date de la prise de vue *</label>
             <input
+              id="event-date"
               type="date"
               required
               value={formData.date}
@@ -119,8 +122,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#111827] mb-1">Lieu de l'événement</label>
+          <label htmlFor="event-location" className="block text-xs font-semibold text-[#111827] mb-1">Lieu de l'événement</label>
           <input
+            id="event-location"
             type="text"
             placeholder="ex: Dakar, King Fahd Palace / Stadium Marius Ndiaye"
             value={formData.location}
@@ -130,8 +134,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#111827] mb-1">Description ou note aux invités</label>
+          <label htmlFor="event-description" className="block text-xs font-semibold text-[#111827] mb-1">Description ou note aux invités</label>
           <textarea
+            id="event-description"
             rows={2}
             placeholder="Informations sur la journée, remerciements ou consignes de téléchargement..."
             value={formData.description}
@@ -141,8 +146,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         </div>
 
         <div className="pt-2 border-t border-[#E5E7EB]">
-          <label className="block text-xs font-semibold text-[#111827] mb-2">Confidentialité de la galerie</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label id="event-privacy-group" className="block text-xs font-semibold text-[#111827] mb-2">Confidentialité de la galerie</label>
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="event-privacy-group">
             {[
               { id: 'PUBLIC', label: 'Publique', desc: 'Accessible via QR ou lien direct' },
               { id: 'CODE_PIN', label: 'Code PIN', desc: 'Protégée par un code' },
@@ -150,8 +155,17 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
             ].map((p) => (
               <div
                 key={p.id}
+                role="radio"
+                aria-checked={formData.privacy === p.id}
+                tabIndex={0}
                 onClick={() => setFormData({ ...formData, privacy: p.id as GalleryPrivacy })}
-                className={`p-2.5 rounded-lg border cursor-pointer text-xs transition-colors ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setFormData({ ...formData, privacy: p.id as GalleryPrivacy });
+                  }
+                }}
+                className={`p-2.5 rounded-lg border cursor-pointer text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-[#F25C05] focus:ring-offset-2 ${
                   formData.privacy === p.id
                     ? 'border-[#F25C05] bg-[#FFF1EB] font-medium text-[#111827]'
                     : 'border-[#E5E7EB] bg-[#F8F9FA] text-[#6B7280]'
@@ -165,10 +179,11 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
 
           {formData.privacy === 'CODE_PIN' && (
             <div className="mt-3">
-              <label className="block text-xs font-semibold text-[#111827] mb-1">
+              <label htmlFor="event-access-pin" className="block text-xs font-semibold text-[#111827] mb-1">
                 Définir le code PIN d'accès
               </label>
               <input
+                id="event-access-pin"
                 type="text"
                 required
                 maxLength={8}
@@ -188,8 +203,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
           <label className="block text-xs font-semibold text-[#111827] mb-2">Tarifs de vente client (FCFA)</label>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <span className="text-[10px] text-[#6B7280]">Photo individuelle HD</span>
+              <label htmlFor="event-price-single" className="text-[10px] text-[#6B7280]">Photo individuelle HD</label>
               <input
+                id="event-price-single"
                 type="number"
                 min={0}
                 value={formData.defaultPricePerPhotoCfa}
@@ -198,8 +214,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
               />
             </div>
             <div>
-              <span className="text-[10px] text-[#6B7280]">Pack (prix forfaitaire)</span>
+              <label htmlFor="event-price-pack" className="text-[10px] text-[#6B7280]">Pack (prix forfaitaire)</label>
               <input
+                id="event-price-pack"
                 type="number"
                 min={0}
                 value={formData.packPriceCfa}
@@ -208,8 +225,9 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
               />
             </div>
             <div>
-              <span className="text-[10px] text-[#6B7280]">Galerie complète</span>
+              <label htmlFor="event-price-full" className="text-[10px] text-[#6B7280]">Galerie complète</label>
               <input
+                id="event-price-full"
                 type="number"
                 min={0}
                 value={formData.fullGalleryPriceCfa}
@@ -221,7 +239,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({ isOpen, onCl
         </div>
 
         {error && (
-          <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">
             {error}
           </p>
         )}

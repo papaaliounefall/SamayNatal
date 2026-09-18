@@ -101,3 +101,41 @@ class LedgerEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.entry_type} {self.amount_cfa} CFA"
+
+
+class PayoutRequest(BaseModel):
+    """A photographer's request to withdraw wallet funds to a real mobile
+    money account. There is no live payout API (same constraint as
+    checkout — no real Wave/Orange Money merchant integration yet), so
+    this is fulfilled manually: an admin sends the money themselves
+    outside the platform, then marks the request PAYE, which is what
+    actually debits the wallet and writes the PAYOUT ledger entry. Until
+    then the funds stay in the wallet, untouched."""
+
+    class Method(models.TextChoices):
+        WAVE = "WAVE", "Wave"
+        ORANGE_MONEY = "ORANGE_MONEY", "Orange Money"
+        FREE_MONEY = "FREE_MONEY", "Free Money"
+
+    class Status(models.TextChoices):
+        EN_ATTENTE = "EN_ATTENTE", "En attente"
+        PAYE = "PAYE", "Payé"
+        REJETE = "REJETE", "Rejeté"
+
+    photographer = models.ForeignKey(PhotographerProfile, on_delete=models.CASCADE, related_name="payout_requests")
+    amount_cfa = models.PositiveIntegerField()
+    method = models.CharField(max_length=20, choices=Method.choices)
+    phone_number = models.CharField(max_length=30)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.EN_ATTENTE)
+    admin_note = models.TextField(blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["photographer", "status"])]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Retrait {self.amount_cfa} CFA ({self.status}) — {self.photographer.business_name}"

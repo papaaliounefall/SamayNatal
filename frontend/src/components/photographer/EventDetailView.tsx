@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../common/Button';
 import { PhotoUploaderModal } from './PhotoUploaderModal';
+import { PhotoEditModal } from './PhotoEditModal';
 import { QRCodeModal } from '../common/QRCodeModal';
 import { WatermarkSettingsModal } from './WatermarkSettingsModal';
+import { PhotographerLayout } from './PhotographerLayout';
+import { ErrorState } from '../common/ErrorState';
 import {
   ArrowLeft,
   UploadCloud,
@@ -13,46 +16,66 @@ import {
   FolderPlus,
   Lock,
   Loader2,
+  Star,
+  Pencil,
+  Trash2,
+  Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { EventDetail, Photo } from '../../types/api';
-import { fetchMyEvent, updateEvent, createGallery } from '../../services/events';
-import { fetchMyPhotos } from '../../services/photos';
+import { fetchMyEvent, updateEvent, createGallery, setCoverPhoto } from '../../services/events';
+import { fetchMyPhotos, deletePhoto } from '../../services/photos';
 import { navigate } from '../../lib/router';
+import { ApiError } from '../../lib/api';
 
-interface EventDetailViewProps {
-  eventId?: string;
+interface EventDetailContentProps {
+  eventId: string;
 }
 
-export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => {
+const EventDetailContent: React.FC<EventDetailContentProps> = ({ eventId }) => {
   const [currentEvent, setCurrentEvent] = useState<EventDetail | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeGalleryId, setActiveGalleryId] = useState<string>('all');
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
   const [newGalleryName, setNewGalleryName] = useState('');
   const [showAddGallery, setShowAddGallery] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [pendingActionPhotoId, setPendingActionPhotoId] = useState<string | null>(null);
+  const [photoActionError, setPhotoActionError] = useState('');
 
   const loadEvent = async () => {
-    if (!eventId) return;
     const [evt, photoPage] = await Promise.all([fetchMyEvent(eventId), fetchMyPhotos(eventId)]);
     setCurrentEvent(evt);
     setPhotos(photoPage.results);
   };
 
-  useEffect(() => {
+  const load = () => {
     setIsLoading(true);
-    loadEvent().finally(() => setIsLoading(false));
+    setLoadError(false);
+    loadEvent()
+      .catch(() => setLoadError(true))
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-[#F25C05] border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (loadError) {
+    return <ErrorState message="Impossible de charger cet événement." onRetry={load} />;
   }
 
   if (!currentEvent) {
@@ -70,7 +93,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
 
   const handleAddSubGallery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGalleryName.trim() || !eventId) return;
+    if (!newGalleryName.trim()) return;
     const gallery = await createGallery(eventId, newGalleryName.trim());
     setCurrentEvent((prev) => (prev ? { ...prev, galleries: [...prev.galleries, gallery] } : prev));
     setNewGalleryName('');
@@ -78,16 +101,50 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
     setActiveGalleryId(gallery.id);
   };
 
+  const handlePublish = async () => {
+    const updated = await updateEvent(eventId, { status: 'ACTIF' });
+    setCurrentEvent(updated);
+  };
+
   const handleArchiveToggle = async () => {
-    if (!eventId) return;
     const nextStatus = currentEvent.status === 'ARCHIVÉ' ? 'ACTIF' : 'ARCHIVÉ';
     const updated = await updateEvent(eventId, { status: nextStatus });
     setCurrentEvent(updated);
   };
 
+  const handleSetCover = async (photo: Photo) => {
+    if (photo.status !== 'READY') return;
+    setPhotoActionError('');
+    setPendingActionPhotoId(photo.id);
+    try {
+      const updated = await setCoverPhoto(eventId, photo.id);
+      setCurrentEvent(updated);
+    } catch (err) {
+      setPhotoActionError(err instanceof ApiError ? err.detail || 'Impossible de définir cette photo comme couverture.' : 'Erreur réseau.');
+    } finally {
+      setPendingActionPhotoId(null);
+    }
+  };
+
+  const handleDeletePhoto = async (photo: Photo) => {
+    const label = photo.title || photo.originalFilename;
+    if (!window.confirm(`Supprimer définitivement "${label}" ? Cette action est irréversible.`)) return;
+    setPhotoActionError('');
+    setPendingActionPhotoId(photo.id);
+    try {
+      await deletePhoto(photo.id);
+      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+      setCurrentEvent((prev) => (prev ? { ...prev, photosCount: Math.max(0, prev.photosCount - 1) } : prev));
+    } catch (err) {
+      setPhotoActionError(err instanceof ApiError ? err.detail || 'Impossible de supprimer cette photo.' : 'Erreur réseau.');
+    } finally {
+      setPendingActionPhotoId(null);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="relative bg-[#121212] text-white">
+    <>
+      <div className="relative bg-[#121212] text-white rounded-2xl overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
           {currentEvent.coverPhotoUrl && (
             <img src={currentEvent.coverPhotoUrl} alt={currentEvent.title} className="w-full h-full object-cover opacity-25" />
@@ -95,7 +152,7 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
           <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/80 to-transparent" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10">
+        <div className="relative px-4 sm:px-6 lg:px-8 pt-6 pb-8">
           <button
             onClick={() => navigate('/dashboard')}
             className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors mb-6 cursor-pointer"
@@ -110,7 +167,15 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#F25C05] bg-[#FFF1EB]/10 border border-orange-500/30 px-2.5 py-0.5 rounded">
                   {currentEvent.category.replace('_', ' ')}
                 </span>
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
+                <span
+                  className={`text-xs font-mono font-semibold px-2 py-0.5 rounded border ${
+                    currentEvent.status === 'ACTIF'
+                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
+                      : currentEvent.status === 'BROUILLON'
+                        ? 'bg-amber-950/60 text-amber-300 border-amber-800'
+                        : 'bg-neutral-800 text-neutral-300 border-neutral-700'
+                  }`}
+                >
                   STATUT : {currentEvent.status}
                 </span>
                 {currentEvent.privacy === 'CODE_PIN' && (
@@ -154,22 +219,51 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
               >
                 Aperçu Invité
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleArchiveToggle}
-                className="text-neutral-400 hover:text-white"
-                icon={<Archive className="w-4 h-4" />}
-              >
-                {currentEvent.status === 'ARCHIVÉ' ? 'Désarchiver' : 'Archiver'}
-              </Button>
+              {currentEvent.status !== 'BROUILLON' && currentEvent.status !== 'SUSPENDU' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleArchiveToggle}
+                  className="text-neutral-400 hover:text-white"
+                  icon={<Archive className="w-4 h-4" />}
+                >
+                  {currentEvent.status === 'ARCHIVÉ' ? 'Désarchiver' : 'Archiver'}
+                </Button>
+              )}
             </div>
           </div>
+
+          {currentEvent.status === 'BROUILLON' && (
+            <div className="mt-6 bg-amber-950/40 border border-amber-800/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-xs text-amber-200 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Cette galerie est en <strong>brouillon</strong> : vos clients ne peuvent pas encore y accéder, même avec le lien ou le QR code.
+                  Publiez-la quand elle est prête.
+                </span>
+              </p>
+              <Button variant="primary" size="sm" onClick={handlePublish} icon={<Globe className="w-4 h-4" />} className="shrink-0">
+                Publier la galerie
+              </Button>
+            </div>
+          )}
+
+          {currentEvent.status === 'SUSPENDU' && (
+            <div className="mt-6 bg-red-950/40 border border-red-800/60 rounded-xl p-4">
+              <p className="text-xs text-red-200 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Cette galerie a été suspendue par l'administration et n'est plus accessible à vos clients.
+                  Contactez le support pour en savoir plus.
+                </span>
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="border-b border-[#E5E7EB] bg-[#F8F9FA] sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between flex-wrap gap-3">
+      <div className="border border-[#E5E7EB] rounded-xl bg-[#F8F9FA] sticky top-20 z-30 mt-6">
+        <div className="px-4 py-3 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             <button
               onClick={() => setActiveGalleryId('all')}
@@ -219,7 +313,11 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="py-8">
+        {photoActionError && (
+          <p className="mb-4 text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{photoActionError}</p>
+        )}
+
         {displayedPhotos.length === 0 ? (
           <div className="border-2 border-dashed border-[#E5E7EB] rounded-2xl p-12 text-center bg-[#F8F9FA]">
             <div className="w-12 h-12 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center text-[#F25C05] mx-auto mb-3">
@@ -237,40 +335,81 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-            {displayedPhotos.map((photo) => (
-              <div key={photo.id} className="group relative rounded-xl overflow-hidden border border-[#E5E7EB] bg-neutral-900 shadow-xs">
-                <div className="aspect-4/3 overflow-hidden bg-neutral-100 relative">
-                  {photo.status === 'READY' && photo.thumbnailUrl ? (
-                    <img
-                      src={photo.thumbnailUrl}
-                      alt={photo.title || photo.originalFilename}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-102"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-neutral-500">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-[10px] font-mono">{photo.status === 'FAILED' ? 'Échec du traitement' : 'Traitement en cours'}</span>
+            {displayedPhotos.map((photo) => {
+              const isCover = !!currentEvent.coverPhotoId && currentEvent.coverPhotoId === photo.id;
+              const isBusy = pendingActionPhotoId === photo.id;
+              return (
+                <div key={photo.id} className="group relative rounded-xl overflow-hidden border border-[#E5E7EB] bg-neutral-900 shadow-xs">
+                  <div className="aspect-4/3 overflow-hidden bg-neutral-100 relative">
+                    {photo.status === 'READY' && photo.thumbnailUrl ? (
+                      <img
+                        src={photo.thumbnailUrl}
+                        alt={photo.title || photo.originalFilename}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-102"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-neutral-500">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="text-[10px] font-mono">{photo.status === 'FAILED' ? 'Échec du traitement' : 'Traitement en cours'}</span>
+                      </div>
+                    )}
+
+                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
+                      #{photo.photoNumber}
                     </div>
-                  )}
 
-                  <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
-                    #{photo.photoNumber}
-                  </div>
+                    {isCover && (
+                      <div className="absolute top-2 right-2 bg-[#F25C05] text-white text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Star className="w-2.5 h-2.5 fill-current" /> Couverture
+                      </div>
+                    )}
 
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-[11px] font-medium truncate">{photo.originalFilename}</p>
-                    <div className="flex items-center justify-between text-[10px] text-neutral-300 font-mono mt-0.5">
-                      <span>{(photo.sizeBytes / (1024 * 1024)).toFixed(1)} Mo</span>
-                      <span>{photo.priceCfa.toLocaleString('fr-FR')} F</span>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-2 pt-6 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-[11px] font-medium truncate">{photo.title || photo.originalFilename}</p>
+                      <div className="flex items-center justify-between text-[10px] text-neutral-300 font-mono mt-0.5">
+                        <span>{(photo.sizeBytes / (1024 * 1024)).toFixed(1)} Mo</span>
+                        <span>{photo.priceCfa.toLocaleString('fr-FR')} F</span>
+                      </div>
+
+                      {photo.status === 'READY' && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/15">
+                          {!isCover && (
+                            <button
+                              onClick={() => handleSetCover(photo)}
+                              disabled={isBusy}
+                              title="Définir comme couverture"
+                              className="flex-1 h-6 rounded bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+                            >
+                              <Star className="w-3 h-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setEditingPhoto(photo)}
+                            disabled={isBusy}
+                            title="Modifier"
+                            className="flex-1 h-6 rounded bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePhoto(photo)}
+                            disabled={isBusy}
+                            title="Supprimer"
+                            className="flex-1 h-6 rounded bg-white/10 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </main>
+      </div>
 
       <PhotoUploaderModal
         isOpen={isUploaderOpen}
@@ -288,6 +427,29 @@ export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => 
         event={currentEvent}
         onSaved={(updated) => setCurrentEvent(updated)}
       />
-    </div>
+
+      {editingPhoto && (
+        <PhotoEditModal
+          isOpen={!!editingPhoto}
+          onClose={() => setEditingPhoto(null)}
+          photo={editingPhoto}
+          event={currentEvent}
+          onSaved={(updated) => setPhotos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))}
+        />
+      )}
+    </>
+  );
+};
+
+interface EventDetailViewProps {
+  eventId?: string;
+}
+
+export const EventDetailView: React.FC<EventDetailViewProps> = ({ eventId }) => {
+  if (!eventId) return null;
+  return (
+    <PhotographerLayout active="dashboard">
+      {() => <EventDetailContent eventId={eventId} />}
+    </PhotographerLayout>
   );
 };

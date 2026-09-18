@@ -83,8 +83,9 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
     >
       <div className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-[#111827] mb-1">Sous-galerie de destination</label>
+          <label htmlFor="upload-gallery" className="block text-xs font-semibold text-[#111827] mb-1">Sous-galerie de destination</label>
           <select
+            id="upload-gallery"
             value={galleryId}
             onChange={(e) => setGalleryId(e.target.value)}
             disabled={isUploading}
@@ -100,11 +101,20 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
 
         {queue.length === 0 && !result && (
           <div
+            role="button"
+            tabIndex={0}
+            aria-label="Choisir des photos à importer"
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#F25C05] focus:ring-offset-2 ${
               isDragging ? 'border-[#F25C05] bg-[#FFF1EB]/40' : 'border-[#E5E7EB] hover:border-gray-400 bg-[#F8F9FA]'
             }`}
           >
@@ -112,6 +122,8 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
               type="file"
               ref={fileInputRef}
               multiple
+              aria-hidden="true"
+              tabIndex={-1}
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
@@ -151,7 +163,7 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
         )}
 
         {error && (
-          <p className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+          <p role="alert" className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
         )}
 
         {queue.length > 0 && (
