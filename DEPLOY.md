@@ -52,5 +52,8 @@ Une fois les services créés, chacun a une URL du type `https://samaynatal-back
 
 ## Limites connues du plan gratuit Render
 
-- La base de données Postgres gratuite expire après 90 jours (à surveiller, ou passer sur un plan payant avant l'échéance).
-- Les services `starter` (backend/workers) sont payants dès le départ dans ce Blueprint — c'est un choix volontaire : le plan gratuit de Render met les services en veille après inactivité, ce qui casse Celery (qui doit tourner en continu) et donne une première requête lente sur le backend après veille.
+Tous les services de ce Blueprint sont en plan gratuit (`free`). Ce que ça implique concrètement :
+
+- **Base de données Postgres** : expire après 30 jours. Surveillez l'échéance dans le dashboard Render et passez sur un plan payant avant, sinon les données sont perdues.
+- **Backend (`samaynatal-backend`)** : se met en veille après une période d'inactivité — la première requête qui le réveille peut prendre 30-60 secondes. Sans conséquence grave, juste un délai visible pour le premier visiteur après une pause.
+- **Workers Celery (`samaynatal-celery-worker`, `samaynatal-celery-beat`)** : c'est le point le plus incertain. Contrairement au backend, un worker ne reçoit pas de requêtes HTTP pour se "réveiller" — s'il est mis en veille par Render pendant une inactivité, les emails/notifications WhatsApp/traitements de retrait mis en file d'attente pendant ce temps risquent de ne partir qu'au redémarrage du worker, pas immédiatement. À surveiller dans les premiers jours : si les notifications arrivent avec un vrai retard systématique, ce sera le signe qu'il faut passer ces deux services sur un plan payant (`starter` suffit) pour qu'ils tournent en continu.

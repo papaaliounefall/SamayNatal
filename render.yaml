@@ -28,7 +28,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
+    plan: free
     healthCheckPath: /api/admin/health/
     envVars:
       - key: DJANGO_SETTINGS_MODULE
@@ -104,7 +104,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: celery -A config worker --loglevel=info
-    plan: starter
+    plan: free
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
@@ -160,7 +160,7 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: celery -A config beat --loglevel=info
-    plan: starter
+    plan: free
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
