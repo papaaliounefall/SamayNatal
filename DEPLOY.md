@@ -1,6 +1,8 @@
 # Déploiement sur Render
 
-Ce dépôt contient un `render.yaml` (Blueprint) qui décrit les 5 services nécessaires : base de données Postgres, Redis, backend Django, worker Celery, planificateur Celery beat, et le frontend (site statique).
+Ce dépôt contient un `render.yaml` (Blueprint) qui décrit les 4 services nécessaires : base de données Postgres, Redis, backend Django, worker Celery, et le frontend (site statique). `celery-beat` (planificateur de tâches périodiques) n'est volontairement pas déployé — aucune tâche périodique n'existe encore dans le projet ; voir le commentaire dans `render.yaml` pour le rajouter le jour où c'est utile.
+
+**Important : Render n'offre pas de plan gratuit pour les Background Workers.** `samaynatal-celery-worker` est donc sur le plan payant le moins cher (`starter`, quelques dollars/mois) — c'est lui qui envoie réellement les emails, notifications WhatsApp et traite les retraits. Les 3 autres services restent gratuits.
 
 ## Ce que le déploiement donne, et ce qu'il ne donne pas
 
@@ -18,14 +20,14 @@ Notez : clé d'accès, clé secrète, nom du bucket, endpoint, région. Vous en 
 
 1. Connectez-vous sur [render.com](https://render.com), **New > Blueprint**.
 2. Connectez le dépôt GitHub `papaaliounefall/SamayNatal`.
-3. Render détecte `render.yaml` et propose de créer les 5 services. Validez.
+3. Render détecte `render.yaml` et propose de créer les 4 services. Validez.
 4. Le premier déploiement va échouer ou tourner en mode dégradé — c'est normal, il manque encore les variables marquées `sync: false` (secrets et URLs générées par Render lui-même).
 
 ## Étape 3 — Remplir les variables manquantes
 
 Une fois les services créés, chacun a une URL du type `https://samaynatal-backend.onrender.com`. Dans le dashboard Render, pour **chaque service concerné** :
 
-**`samaynatal-backend`, `samaynatal-celery-worker`, `samaynatal-celery-beat`** :
+**`samaynatal-backend`, `samaynatal-celery-worker`** :
 - `SECRET_KEY` — générez une seule valeur aléatoire et collez-la **identique** dans les trois services :
   ```
   python -c "import secrets; print(secrets.token_urlsafe(50))"
@@ -50,10 +52,9 @@ Une fois les services créés, chacun a une URL du type `https://samaynatal-back
 - Ouvrir le frontend, se connecter avec le compte admin existant, confirmer que les dashboards chargent des vraies données.
 - Créer une commande de test et vérifier dans les logs de `samaynatal-celery-worker` que l'email part (ou apparaît dans les logs si `EMAIL_HOST` n'est pas encore configuré) et que le message WhatsApp simulé apparaît.
 
-## Limites connues du plan gratuit Render
+## Limites connues
 
-Tous les services de ce Blueprint sont en plan gratuit (`free`). Ce que ça implique concrètement :
-
-- **Base de données Postgres** : expire après 30 jours. Surveillez l'échéance dans le dashboard Render et passez sur un plan payant avant, sinon les données sont perdues.
-- **Backend (`samaynatal-backend`)** : se met en veille après une période d'inactivité — la première requête qui le réveille peut prendre 30-60 secondes. Sans conséquence grave, juste un délai visible pour le premier visiteur après une pause.
-- **Workers Celery (`samaynatal-celery-worker`, `samaynatal-celery-beat`)** : c'est le point le plus incertain. Contrairement au backend, un worker ne reçoit pas de requêtes HTTP pour se "réveiller" — s'il est mis en veille par Render pendant une inactivité, les emails/notifications WhatsApp/traitements de retrait mis en file d'attente pendant ce temps risquent de ne partir qu'au redémarrage du worker, pas immédiatement. À surveiller dans les premiers jours : si les notifications arrivent avec un vrai retard systématique, ce sera le signe qu'il faut passer ces deux services sur un plan payant (`starter` suffit) pour qu'ils tournent en continu.
+- **Base de données Postgres (gratuite)** : expire après 30 jours. Surveillez l'échéance dans le dashboard Render et passez sur un plan payant avant, sinon les données sont perdues.
+- **Backend (`samaynatal-backend`, gratuit)** : se met en veille après une période d'inactivité — la première requête qui le réveille peut prendre 30-60 secondes. Sans conséquence grave, juste un délai visible pour le premier visiteur après une pause.
+- **Worker Celery (`samaynatal-celery-worker`, payant)** : sur plan payant, tourne en continu — pas de retard attendu sur les emails/WhatsApp/retraits.
+- **Compte Render séparé** : si ce projet est sur un compte Render différent de vos autres projets (pour éviter la limite d'1 base/Redis gratuits par compte), pensez à noter les identifiants de connexion quelque part — deux comptes Render à gérer.

@@ -109,7 +109,9 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     dockerCommand: celery -A config worker --loglevel=info
-    plan: free
+    # Render doesn't offer a free tier for Background Workers at all —
+    # this is the cheapest plan that supports the service type.
+    plan: starter
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.production
@@ -161,33 +163,11 @@ services:
       - key: TWILIO_WHATSAPP_FROM
         sync: false
 
-  - type: worker
-    name: samaynatal-celery-beat
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: celery -A config beat --loglevel=info
-    plan: free
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.production
-      - key: SECRET_KEY
-        sync: false
-      - key: DEBUG
-        value: "False"
-      - key: ALLOWED_HOSTS
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: samaynatal-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: samaynatal-redis
-          property: connectionString
-      - key: USE_REDIS
-        value: "True"
+  # celery-beat is intentionally not deployed — there are no periodic
+  # (beat_schedule) tasks defined anywhere in the project today, so it
+  # would run and cost money for nothing. Add it back (same shape as
+  # samaynatal-celery-worker above, with `dockerCommand: celery -A config
+  # beat --loglevel=info`) the day a real scheduled task exists.
 
   - type: web
     name: samaynatal-frontend
