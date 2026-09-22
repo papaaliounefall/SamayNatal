@@ -37,6 +37,15 @@ services:
         sync: false
       - key: DEBUG
         value: "False"
+      # Creates the first admin account on boot (Render's Shell tab, the
+      # normal way to run `createsuperuser` interactively, is a paid
+      # feature). Safe to leave set — see the comment in the Dockerfile.
+      # Change/remove DJANGO_SUPERUSER_PASSWORD after your first login so
+      # the real password isn't sitting in plaintext in this dashboard.
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
       # Render's own domain for this service, e.g. samaynatal-backend.onrender.com
       - key: ALLOWED_HOSTS
         sync: false
