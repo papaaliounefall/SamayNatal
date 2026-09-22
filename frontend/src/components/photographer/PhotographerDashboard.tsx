@@ -18,6 +18,14 @@ const DashboardContent: React.FC<{ profile: PhotographerProfile; wallet: Wallet 
   const [selectedQrEvent, setSelectedQrEvent] = useState<EventDetail | null>(null);
 
   const loadEvents = () => {
+    // A non-approved photographer has no events and IsApprovedPhotographer
+    // rejects the request with a 403 — that's an expected state, not a
+    // failure, so skip the call rather than show an error the "Réessayer"
+    // button could never actually fix.
+    if (profile.status !== 'APPROUVÉ') {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setLoadError(false);
     fetchMyEvents()
@@ -28,6 +36,7 @@ const DashboardContent: React.FC<{ profile: PhotographerProfile; wallet: Wallet 
 
   useEffect(() => {
     loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (isLoading) {
