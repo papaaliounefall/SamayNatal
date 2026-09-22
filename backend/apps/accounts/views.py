@@ -27,13 +27,21 @@ from .serializers import (
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    secure = getattr(settings, "AUTH_COOKIE_SECURE", True)
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
         value=refresh_token,
         max_age=int(timedelta(days=14).total_seconds()),
         httponly=True,
-        secure=getattr(settings, "AUTH_COOKIE_SECURE", True),
-        samesite="Lax",
+        secure=secure,
+        # SameSite=None is required when the frontend and backend are on
+        # different sites (e.g. separate Render domains in production) —
+        # a Lax cookie is never sent on the cross-site fetch() that
+        # silentRefresh() makes. Browsers reject None without Secure, so
+        # only use it when we're actually on HTTPS; local dev (plain
+        # http://localhost) keeps Lax, which works there since frontend
+        # and backend share the "localhost" site.
+        samesite="None" if secure else "Lax",
         path="/api/auth/",
     )
 
