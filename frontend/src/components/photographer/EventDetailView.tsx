@@ -21,6 +21,7 @@ import {
   Trash2,
   Globe,
   AlertTriangle,
+  MoreVertical,
 } from 'lucide-react';
 import { EventDetail, Photo } from '../../types/api';
 import { fetchMyEvent, updateEvent, createGallery, setCoverPhoto } from '../../services/events';
@@ -41,6 +42,7 @@ const EventDetailContent: React.FC<EventDetailContentProps> = ({ eventId }) => {
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [newGalleryName, setNewGalleryName] = useState('');
   const [showAddGallery, setShowAddGallery] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
@@ -201,35 +203,84 @@ const EventDetailContent: React.FC<EventDetailContentProps> = ({ eventId }) => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button variant="primary" size="md" onClick={() => setIsUploaderOpen(true)} icon={<UploadCloud className="w-4 h-4" />}>
                 Ajouter des photos
               </Button>
-              <Button variant="dark" size="md" onClick={() => setIsQrModalOpen(true)} icon={<QrCode className="w-4 h-4 text-[#F25C05]" />}>
-                QR Code
-              </Button>
-              <Button variant="dark" size="md" onClick={() => setIsWatermarkModalOpen(true)} icon={<Sliders className="w-4 h-4" />}>
-                Filigrane
-              </Button>
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => window.open(`/g/${currentEvent.slug}`, '_blank')}
-                icon={<Eye className="w-4 h-4" />}
-              >
-                Aperçu Invité
-              </Button>
-              {currentEvent.status !== 'BROUILLON' && currentEvent.status !== 'SUSPENDU' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleArchiveToggle}
-                  className="text-neutral-400 hover:text-white"
-                  icon={<Archive className="w-4 h-4" />}
-                >
-                  {currentEvent.status === 'ARCHIVÉ' ? 'Désarchiver' : 'Archiver'}
+
+              {/* Desktop: every action gets its own button. Mobile: the
+                  same four secondary actions collapse into one menu so the
+                  header doesn't wrap across three cramped rows. */}
+              <div className="hidden sm:flex items-center gap-2">
+                <Button variant="dark" size="md" onClick={() => setIsQrModalOpen(true)} icon={<QrCode className="w-4 h-4 text-[#F25C05]" />}>
+                  QR Code
                 </Button>
-              )}
+                <Button variant="dark" size="md" onClick={() => setIsWatermarkModalOpen(true)} icon={<Sliders className="w-4 h-4" />}>
+                  Filigrane
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => window.open(`/g/${currentEvent.slug}`, '_blank')}
+                  icon={<Eye className="w-4 h-4" />}
+                >
+                  Aperçu Invité
+                </Button>
+                {currentEvent.status !== 'BROUILLON' && currentEvent.status !== 'SUSPENDU' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleArchiveToggle}
+                    className="text-neutral-400 hover:text-white"
+                    icon={<Archive className="w-4 h-4" />}
+                  >
+                    {currentEvent.status === 'ARCHIVÉ' ? 'Désarchiver' : 'Archiver'}
+                  </Button>
+                )}
+              </div>
+
+              <div className="relative sm:hidden">
+                <button
+                  onClick={() => setIsMoreMenuOpen((v) => !v)}
+                  aria-label="Plus d'actions"
+                  className="p-2.5 rounded-md bg-[#262626] hover:bg-neutral-700 text-white border border-neutral-700 cursor-pointer"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {isMoreMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsMoreMenuOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-lg z-20 py-1 text-sm">
+                      <button
+                        onClick={() => { setIsMoreMenuOpen(false); setIsQrModalOpen(true); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-white hover:bg-neutral-800 cursor-pointer"
+                      >
+                        <QrCode className="w-4 h-4 text-[#F25C05]" /> QR Code
+                      </button>
+                      <button
+                        onClick={() => { setIsMoreMenuOpen(false); setIsWatermarkModalOpen(true); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-white hover:bg-neutral-800 cursor-pointer"
+                      >
+                        <Sliders className="w-4 h-4" /> Filigrane
+                      </button>
+                      <button
+                        onClick={() => { setIsMoreMenuOpen(false); window.open(`/g/${currentEvent.slug}`, '_blank'); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-white hover:bg-neutral-800 cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" /> Aperçu Invité
+                      </button>
+                      {currentEvent.status !== 'BROUILLON' && currentEvent.status !== 'SUSPENDU' && (
+                        <button
+                          onClick={() => { setIsMoreMenuOpen(false); handleArchiveToggle(); }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-neutral-300 hover:bg-neutral-800 cursor-pointer"
+                        >
+                          <Archive className="w-4 h-4" /> {currentEvent.status === 'ARCHIVÉ' ? 'Désarchiver' : 'Archiver'}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
